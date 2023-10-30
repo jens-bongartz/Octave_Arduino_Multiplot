@@ -7,7 +7,6 @@ classdef dataStreamClass
         plcolor = "";
         #ylim = [0 100];
         ylim = 0;
-        adc_plot = [ ];           # in adc_plot stehen die Messdaten des Graphfenster
         filter = 1;
         HP_sp = [0 0 0 0 0 0];    # Filter-Speicher
         NO_sp = [0 0 0 0 0 0];    # Filter-Speicher

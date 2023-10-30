@@ -50,6 +50,8 @@ if !isempty(serialPortPath)
   # EKG         = EKG / t       - fensterbreite = 1000
   # Atmung      = ATM / t       - fensterbreite = 400
   # Beat        = ATM / t       - fensterbreite = 1000
+
+ # obj = dataStreamClass(name,plcolor,plot,filter)
   dataStream(1) = dataStreamClass("ATM","red",1,1);
   dataStream(2) = dataStreamClass("t","blue",0,0);
   dataStream(1).ylim = [-20 20];  # auskommentieren wenn automatisch
@@ -157,7 +159,7 @@ if !isempty(serialPortPath)
        j = 0;
        for i = 1:length(dataStream);
          dataStream(i).array = [];
-         dataStream(i).adc_plot = [];
+         #dataStream(i).adc_plot = [];
          if (dataStream(i).plot > 0)
            j = j + 1;
            set(subPl(j),"xlim",[0 fensterbreite]);
@@ -270,11 +272,11 @@ if !isempty(serialPortPath)
               endif
             endif
             # passender Teil des array wird in adc_plot umkopiert
-            dataStream(i).adc_plot = dataStream(i).array(x_start:x_index);
+            adc_plot = dataStream(i).array(x_start:x_index);
             x_index_prev = x_index;
             % Hier wird die Linie gezeichnet
             if (ishandle(fi_1))
-              set(subLi(j),"xdata",x_axis,"ydata",dataStream(i).adc_plot);
+              set(subLi(j),"xdata",x_axis,"ydata",adc_plot);
             endif
             drawnow();
          endif # (dataStream(i).plot==1)
