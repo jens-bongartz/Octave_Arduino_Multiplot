@@ -1,1 +1,68 @@
+State-Variablen:
+global HP_filtered = 0;
+global NO_filtered = 0;
+global TP_filtered = 0;
+global quit_prg = 0;
+global clear_data = 0;
+global save_data = 0;
+global rec_data = 1;
+
+Grafik-Ausgabe:
+f_1;
+subPl();
+subLi();  
+x_axis;
+fensterbreite = 200;
+min_bytesAvailable = 1;
+x_index = 0;
+x_start = x_index – fensterbreite / = 1
+x_index_prev = 0;
+min_x_index_step = 1;
+if (x_index - x_index_prev) > min_x_index_step)
+
+GUI:
+cap1;
+
+Serial-Port:
+serialPortPath;
+serial_01;
+bytesavailable;
+inSerialPort;
+inBuffer;
+posCRLF;
+inChar;
+dataRows;
+NameValuePairs;
+NameValue;
+adc;
+
+Datenstrom-Struct:
+dataStream(1).name = "rot";
+dataStream(1).array = [ ];
+dataStream(1).plot = 1;
+dataStream(1).plcolor = "red";
+dataStream(1).ylim = 0;
+dataStream(1).adc_plot = [ ];
+dataStream(1).filter = 1;
+dataStream(1).HP_sp = [0 0 0 0 0 0];
+dataStream(1).NO_sp = [0 0 0 0 0 0];
+dataStream(1).TP_sp = [0 0 0 0 0 0];
+
+Index-Variablen:
+i; j; k; spN;
+
+Filter:
+HP_ko;
+NO_ko;
+TP_ko;
+
+Save:
+dataMatrix;
+myfilename;
+ 
+Packages:
+
+Instrument-Control Package
+
+Graphics-Toolkit
 
