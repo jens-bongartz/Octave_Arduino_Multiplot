@@ -2,16 +2,16 @@
 classdef dataStreamClass
     properties
         name = "";
-        array = [ ];
+        array = [ ];              # in array[] stehen alle Messdaten seit CLEAR
         plot = 1;
         plcolor = "";
         #ylim = [0 100];
         ylim = 0;
-        adc_plot = [ ];
+        adc_plot = [ ];           # in adc_plot stehen die Messdaten des Graphfenster
         filter = 1;
-        HP_sp = [0 0 0 0 0 0];                    % Filter-Speicher
-        NO_sp = [0 0 0 0 0 0];                    % Filter-Speicher
-        TP_sp = [0 0 0 0 0 0];
+        HP_sp = [0 0 0 0 0 0];    # Filter-Speicher
+        NO_sp = [0 0 0 0 0 0];    # Filter-Speicher
+        TP_sp = [0 0 0 0 0 0];    # Filter-Speicher
     end
 
     methods
