@@ -12,6 +12,9 @@
 #  function digitalerFilter ist in separate Datei ausgelagert
 pkg load instrument-control;
 clear all;
+#
+min_bytesAvailable = 1;
+min_x_index_step   = 10;
 # Digitale Filter konfigurieren
 # =============================
 f_abtast = 200;
@@ -22,11 +25,15 @@ f_NO = 50;
 HP_ko = calcHPCoeff(f_abtast,f_HP);
 NO_ko = calcNotchCoeff(f_abtast,f_NO);
 TP_ko = calcTPCoeff(f_abtast,f_TP);
+DQ_ko = [1 -1 0 0 0];                # (x[n]-x[n-1])/1
+DQ2_ko = [0.5 0 -0.5 0 0];           # (x[n]-x[n-2])/2
 
 # Globale Variablen zur Programmsteuerung
 global HP_filtered = 1;
 global NO_filtered = 1;
 global TP_filtered = 1;
+global DQ_filtered = 0;
+global DQ2_filtered = 0;
 global quit_prg = 0;
 global clear_data = 0;
 global save_data = 0;
@@ -85,7 +92,7 @@ if !isempty(serialPortPath)
     if (dataStream(i).plot == 1)
       j=j+1;
       ## The function subplot returns a handle pointing to an object of type axes.
-      subPl(i) = subplot(spN,1,j);
+      subPl(j) = subplot(spN,1,j);
       set(subPl(j),"box","on","title",dataStream(i).name,"xlim",[1 fensterbreite]);
       # wenn ylim Grenzen nutzt
       if (sum(dataStream(j).ylim != 0))
@@ -141,8 +148,7 @@ if !isempty(serialPortPath)
   Bench_Time = 2;              # Sekunden
   x_index =  0;
   x_index_prev = 0;
-  min_bytesAvailable = 1;
-  min_x_index_step   = 1;
+
   # Benchmarking
   x_index_tic = 0;
   f_oct = t_toc = cpu_load = 0;
@@ -159,7 +165,7 @@ if !isempty(serialPortPath)
        j = 0;
        for i = 1:length(dataStream);
          dataStream(i).array = [];
-         #dataStream(i).adc_plot = [];
+         dataStream(i).adc_plot = [];
          if (dataStream(i).plot > 0)
            j = j + 1;
            set(subPl(j),"xlim",[0 fensterbreite]);
@@ -220,13 +226,23 @@ if !isempty(serialPortPath)
                    if (HP_filtered)
                       [adc,dataStream(j).HP_sp] = digitalerFilter(adc,dataStream(j).HP_sp,HP_ko);
                    endif
+                   if (DQ_filtered)
+                      [adc,dataStream(j).DQ_sp] = digitalerFilter(adc,dataStream(j).DQ_sp,DQ_ko);
+                   endif
+                   if (DQ2_filtered)
+                      [adc,dataStream(j).DQ2_sp] = digitalerFilter(adc,dataStream(j).DQ2_sp,DQ2_ko);
+                   endif
                 endif # dataStream(k).filter > 0
                 # Daten werden fuer alle dataStreams in das array uebernommen
                 dataStream(j).array(x_index)=adc;
-
                 if (abs(adc) < 0.0001)                % 'dataaspectratio' Error verhindern
                    dataStream(j).array(x_index)=0;
                 endif
+                if (dataStream(1).array(x_index) > beatThreshold)
+                  adc
+                  beep()
+                endif
+
               endfor #j = 1:length(dataStream)
             endfor #i
 
@@ -241,7 +257,11 @@ if !isempty(serialPortPath)
                bytesPerSecond = round(bytesReceived / t_toc);
                bytesReceived = 0;
                #  Schwellenwert fuer Beat-Detection
-               # beatThreshold = (1/2)*(max(dataStream(1).array) - mean(dataStream(1).array));
+               max(dataStream(1).adc_plot)
+               std(dataStream(1).adc_plot)
+               if (max(dataStream(1).adc_plot) > 4*std(dataStream(1).adc_plot))
+                  beatThreshold = 0.5*max(dataStream(1).adc_plot)
+               endif
                tic
             endif
             % ==============
@@ -272,11 +292,11 @@ if !isempty(serialPortPath)
               endif
             endif
             # passender Teil des array wird in adc_plot umkopiert
-            adc_plot = dataStream(i).array(x_start:x_index);
+            dataStream(i).adc_plot = dataStream(i).array(x_start:x_index);
             x_index_prev = x_index;
             % Hier wird die Linie gezeichnet
             if (ishandle(fi_1))
-              set(subLi(j),"xdata",x_axis,"ydata",adc_plot);
+              set(subLi(j),"xdata",x_axis,"ydata",dataStream(i).adc_plot);
             endif
             drawnow();
          endif # (dataStream(i).plot==1)

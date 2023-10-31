@@ -16,8 +16,8 @@ function cap = GUI_Elements(fi_1)
 
   % "Notch" Checkbox
   global NO_filtered;
-  cb_NO = uicontrol(fi_1,"style","checkbox","string","Notch", ...
-                      "callback",@cb_NO_changed,"position",[110,0,90,30], ...
+  cb_NO = uicontrol(fi_1,"style","checkbox","string","NO", ...
+                      "callback",@cb_NO_changed,"position",[60,0,90,30], ...
                       "value", NO_filtered);
 
   function cb_NO_changed(~,~);
@@ -27,11 +27,29 @@ function cap = GUI_Elements(fi_1)
   % "TP" Checkbox
   global TP_filtered;
   cb_TP = uicontrol(fi_1,"style","checkbox","string","TP", ...
-                    "callback",@cb_TP_changed,"position",[210,0,90,30], ...
+                    "callback",@cb_TP_changed,"position",[110,0,90,30], ...
                     "value", TP_filtered);
 
   function cb_TP_changed(~,~);
     TP_filtered = not(TP_filtered);
+  endfunction
+
+  global DQ_filtered;
+  cb_DQ = uicontrol(fi_1,"style","checkbox","string","DQ", ...
+                    "callback",@cb_DQ_changed,"position",[160,0,90,30], ...
+                    "value", DQ_filtered);
+
+  function cb_DQ_changed(~,~);
+    DQ_filtered = not(DQ_filtered);
+  endfunction
+
+  global DQ2_filtered;
+  cb_DQ2 = uicontrol(fi_1,"style","checkbox","string","DQ2", ...
+                    "callback",@cb_DQ2_changed,"position",[210,0,90,30], ...
+                    "value", DQ2_filtered);
+
+  function cb_DQ2_changed(~,~);
+    DQ2_filtered = not(DQ2_filtered);
   endfunction
 
   % Clear-Button
