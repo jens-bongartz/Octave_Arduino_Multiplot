@@ -242,6 +242,8 @@ if !isempty(serialPortPath)
                    dataStream(j).array(x_index)=0;
                 endif
 
+                # beatDetector laeuft nur auf dataStream(1)
+
                 if ((dataStream(1).array(x_index) > beatThreshold) && !beatTrigger)
                   beatIntervall = x_index - beatOld;
                   beatOld = x_index;
@@ -250,8 +252,6 @@ if !isempty(serialPortPath)
                 endif
 
                 if ((dataStream(1).array(x_index) < beatThreshold) && beatTrigger)
-                  #disp("Trigger off");
-                  #disp(x_index);
                   beatTrigger = 0;
                 endif
 
