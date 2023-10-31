@@ -26,7 +26,7 @@ HP_ko = calcHPCoeff(f_abtast,f_HP);
 NO_ko = calcNotchCoeff(f_abtast,f_NO);
 TP_ko = calcTPCoeff(f_abtast,f_TP);
 DQ_ko = [1 -1 0 0 0];                # (x[n]-x[n-1])/1
-DQ2_ko = [0.5 0 -0.5 0 0];           # (x[n]-x[n-2])/2
+DQ2_ko = [1 0 -1 0 0];           # (x[n]-x[n-2])/2
 
 # Globale Variablen zur Programmsteuerung
 global HP_filtered = 1;
@@ -158,7 +158,9 @@ if !isempty(serialPortPath)
   t_cpu = cputime;
   # nicht genutzt
   beatThreshold = 100;
-
+  beatTrigger = 0;
+  beatOld = 0;
+  beatBPM = 0;
   do
      ## Wenn der Clear-Button gedrueckt wurde
      if (clear_data)
@@ -234,13 +236,23 @@ if !isempty(serialPortPath)
                    endif
                 endif # dataStream(k).filter > 0
                 # Daten werden fuer alle dataStreams in das array uebernommen
+
                 dataStream(j).array(x_index)=adc;
                 if (abs(adc) < 0.0001)                % 'dataaspectratio' Error verhindern
                    dataStream(j).array(x_index)=0;
                 endif
-                if (dataStream(1).array(x_index) > beatThreshold)
-                  adc
-                  beep()
+
+                if ((dataStream(1).array(x_index) > beatThreshold) && !beatTrigger)
+                  beatIntervall = x_index - beatOld;
+                  beatOld = x_index;
+                  beatBPM = round(60/(beatIntervall*(1/f_abtast)));
+                  beatTrigger = 1;
+                endif
+
+                if ((dataStream(1).array(x_index) < beatThreshold) && beatTrigger)
+                  #disp("Trigger off");
+                  #disp(x_index);
+                  beatTrigger = 0;
                 endif
 
               endfor #j = 1:length(dataStream)
@@ -257,10 +269,8 @@ if !isempty(serialPortPath)
                bytesPerSecond = round(bytesReceived / t_toc);
                bytesReceived = 0;
                #  Schwellenwert fuer Beat-Detection
-               max(dataStream(1).adc_plot)
-               std(dataStream(1).adc_plot)
                if (max(dataStream(1).adc_plot) > 4*std(dataStream(1).adc_plot))
-                  beatThreshold = 0.5*max(dataStream(1).adc_plot)
+                  beatThreshold = 0.5*max(dataStream(1).adc_plot);
                endif
                tic
             endif
@@ -307,6 +317,7 @@ if !isempty(serialPortPath)
          set(cap(3),"string",num2str(t_toc));
          set(cap(4),"string",num2str(cpu_load));
          set(cap(5),"string",num2str(bytesPerSecond));
+         set(cap(6),"string",num2str(beatBPM));
        endif # ishandle(fi_1))
      endif # x_index - x_index_prev) > 20
      %pause(0.05);
