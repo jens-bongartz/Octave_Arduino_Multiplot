@@ -13,8 +13,12 @@
 pkg load instrument-control;
 clear all;
 #
+baudrate = 115200;
 min_bytesAvailable = 10;
-min_x_index_step   = 10;
+min_x_index_step   = 1;
+beatDetect = 1;
+extrDetect = 1;
+
 # Digitale Filter konfigurieren
 # =============================
 f_abtast = 200;
@@ -25,15 +29,15 @@ f_NO = 50;
 HP_ko = calcHPCoeff(f_abtast,f_HP);
 NO_ko = calcNotchCoeff(f_abtast,f_NO);
 TP_ko = calcTPCoeff(f_abtast,f_TP);
-DQ_ko = [1 -1 0 0 0];                # (x[n]-x[n-1])/1
-DQ2_ko = [1 0 -1 0 0];           # (x[n]-x[n-2])/2
+DQ_ko  = [1 -1 0 0 0];                   # (x[n]-x[n-1])/1
+DQ2_ko = [1 0 -1 0 0];                   # (x[n]-x[n-2])/(2) (1)
 
 # Globale Variablen zur Programmsteuerung
-global HP_filtered = 1;
+global HP_filtered = 0;
 global NO_filtered = 1;
 global TP_filtered = 1;
 global DQ_filtered = 0;
-global DQ2_filtered = 1;
+global DQ2_filtered = 0;
 global quit_prg = 0;
 global clear_data = 0;
 global save_data = 0;
@@ -58,11 +62,15 @@ if !isempty(serialPortPath)
   # Atmung      = ATM / t       - fensterbreite = 400
   # Beat        = ATM / t       - fensterbreite = 1000
 
- # obj = dataStreamClass(name,plcolor,plot,filter)
-  dataStream(1) = dataStreamClass("ATM","red",1,1);
-  dataStream(2) = dataStreamClass("t","blue",0,0);
-  dataStream(1).ylim = [-20 20];  # auskommentieren wenn automatisch
-  fensterbreite = 1000;
+# obj = dataStreamClass(name,plcolor,plot,filter)
+##  dataStream(1) = dataStreamClass("PUL","red",1,1);
+##  dataStream(2) = dataStreamClass("t","blue",0,0);
+##  dataStream(1).ylim = [-20 20];  # auskommentieren wenn automatisch
+##  fensterbreite = 1000;
+  dataStream(1) = dataStreamClass("ir","blue",1,1);
+  dataStream(2) = dataStreamClass("rot","red",1,1);
+  dataStream(3) = dataStreamClass("t","black",0,0);
+  fensterbreite = 200;
 
   # Aus den dataStream Namen wird das regex-Pattern erzeugt
   # =======================================================
@@ -104,18 +112,17 @@ if !isempty(serialPortPath)
   endfor
 
   # externe Funktionen
-  # ==================
+
   cap = GUI_Elements(fi_1);       % cap ist ein Array von captions!
   displayInfo(fi_1)
 
   # Oeffnen serialPort
-  #===================
   inBuffer = '';                    %% Buffer serielle Schnittstelle
   cr_lf = [char(13) char(10)];
 
   if (!isempty(serialPortPath))
     disp('Open SerialPort!')
-    serial_01 = serialport(serialPortPath,115200);
+    serial_01 = serialport(serialPortPath,baudrate);
     flush(serial_01);
   endif
 
@@ -156,7 +163,7 @@ if !isempty(serialPortPath)
   bytesPerSecond = 0;
   tic
   t_cpu = cputime;
-  # nicht genutzt
+  # Beat Detection >>
   beatThreshold = 100;
   beatTrigger = 0;
   beatOld = 0;
@@ -242,24 +249,27 @@ if !isempty(serialPortPath)
                    dataStream(j).array(x_index)=0;
                 endif
 
-                # beatDetector laeuft nur auf dataStream(1)
-
-                if ((dataStream(1).array(x_index) > beatThreshold) && !beatTrigger)
-                  beatIntervall = x_index - beatOld;
-                  beatOld = x_index;
-                  beatBPM = round(60/(beatIntervall*(1/f_abtast)));
-                  beatTrigger = 1;
-                endif
-
-                if ((dataStream(1).array(x_index) < beatThreshold) && beatTrigger)
-                  beatTrigger = 0;
+                if (beatDetect)
+                  # beatDetector laeuft aktuell nur auf dataStream(1)
+                  if ((dataStream(1).array(x_index) > beatThreshold) && !beatTrigger)
+                    # Doppel-Peaks unterdruecken
+                    if (x_index - beatOld) > (f_abtast / 10)
+                       beatIntervall = x_index - beatOld;
+                       beatOld = x_index;
+                       beatBPM = round(60/(beatIntervall*(1/f_abtast)));
+                       beatTrigger = 1;
+                    endif
+                  endif
+                  if ((dataStream(1).array(x_index) < beatThreshold) && beatTrigger)
+                    beatTrigger = 0;
+                  endif
                 endif
 
               endfor #j = 1:length(dataStream)
             endfor #i
 
-            % Benchmarking pro Datenzeile (x_index)
-            % =====================================
+            # Benchmarking pro Datenzeile (alle Bench_Time Sekunden)
+
             if (toc > Bench_Time)
                t_toc = toc;
                f_oct = round(1/(t_toc / x_index_tic));
@@ -269,15 +279,17 @@ if !isempty(serialPortPath)
                bytesPerSecond = round(bytesReceived / t_toc);
                bytesReceived = 0;
                #  Schwellenwert fuer Beat-Detection
-               if (max(dataStream(1).adc_plot) > 4*std(dataStream(1).adc_plot))
-                  beatThreshold = 0.5*max(dataStream(1).adc_plot);
+               if (beatDetect)
+                  if (max(dataStream(1).adc_plot) > 4*std(dataStream(1).adc_plot))
+                     beatThreshold = 0.5*max(dataStream(1).adc_plot);
+                  endif
                endif
                tic
             endif
-            % ==============
          endif # (rec_data)
        endif # of posCRLF
      endif  # of bytesAvaiable
+
      # Grafikausgaben werden nur durchgefuehrt, wenn x_index hochzaehlt (rec_data = TRUE)
      # Vor der Grafikausgabe sollte geprueft werden, ob figure noch offen ist >> ishandle(fi_1)
      # Warten mit dem Redraw bis ausreichend neue Werte gesampelt sind
@@ -320,7 +332,8 @@ if !isempty(serialPortPath)
          set(cap(6),"string",num2str(beatBPM));
        endif # ishandle(fi_1))
      endif # x_index - x_index_prev) > 20
-     %pause(0.05);
+     # Entlastung der CPU / des OS
+     #pause(0.05);
      pause(0.025);
   until(quit_prg);    %% Programmende mit Quit-Button
   clear serial_01;
