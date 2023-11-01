@@ -17,11 +17,12 @@ baudrate = 115200;
 min_bytesAvailable = 10;
 min_x_index_step   = 1;
 beatDetect = 1;
-extrDetect = 1;
+extrDetect = 0;
 
 # Digitale Filter konfigurieren
 # =============================
 f_abtast = 200;
+#f_abtast = 13;
 f_HP = 20;
 f_TP = 10;
 f_NO = 50;
@@ -33,11 +34,11 @@ DQ_ko  = [1 -1 0 0 0];                   # (x[n]-x[n-1])/1
 DQ2_ko = [1 0 -1 0 0];                   # (x[n]-x[n-2])/(2) (1)
 
 # Globale Variablen zur Programmsteuerung
-global HP_filtered = 0;
+global HP_filtered = 1;
 global NO_filtered = 1;
 global TP_filtered = 1;
 global DQ_filtered = 0;
-global DQ2_filtered = 0;
+global DQ2_filtered = 1;
 global quit_prg = 0;
 global clear_data = 0;
 global save_data = 0;
@@ -63,14 +64,17 @@ if !isempty(serialPortPath)
   # Beat        = ATM / t       - fensterbreite = 1000
 
 # obj = dataStreamClass(name,plcolor,plot,filter)
-##  dataStream(1) = dataStreamClass("PUL","red",1,1);
-##  dataStream(2) = dataStreamClass("t","blue",0,0);
-##  dataStream(1).ylim = [-20 20];  # auskommentieren wenn automatisch
-##  fensterbreite = 1000;
-  dataStream(1) = dataStreamClass("ir","blue",1,1);
-  dataStream(2) = dataStreamClass("rot","red",1,1);
-  dataStream(3) = dataStreamClass("t","black",0,0);
-  fensterbreite = 200;
+  dataStream(1) = dataStreamClass("PUL","red",1,1);
+  dataStream(2) = dataStreamClass("t","blue",0,0);
+  dataStream(1).ylim = [-20 20];  # auskommentieren wenn automatisch
+  fensterbreite = 1000;
+##  dataStream(1) = dataStreamClass("ir","blue",1,1);
+##  dataStream(2) = dataStreamClass("rot","red",1,1);
+##  dataStream(3) = dataStreamClass("t","black",0,0);
+##  fensterbreite = 200;
+##  dataStream(1) = dataStreamClass("ATM","blue",1,1);
+##  dataStream(2) = dataStreamClass("t","red",0,0);
+##  fensterbreite = 400;
 
   # Aus den dataStream Namen wird das regex-Pattern erzeugt
   # =======================================================
@@ -158,7 +162,7 @@ if !isempty(serialPortPath)
 
   # Benchmarking
   x_index_tic = 0;
-  f_oct = t_toc = cpu_load = 0;
+  f_oct = t_toc = cpu_load = 1;
   bytesReceived = 0;
   bytesPerSecond = 0;
   tic
@@ -168,6 +172,10 @@ if !isempty(serialPortPath)
   beatTrigger = 0;
   beatOld = 0;
   beatBPM = 0;
+  # Extrema Detection
+  slopeAct = 1;
+  slopeOld = -1;
+  slopeMax = slopeMin = 1;
   do
      ## Wenn der Clear-Button gedrueckt wurde
      if (clear_data)
@@ -183,6 +191,7 @@ if !isempty(serialPortPath)
        x_index = 0;
        x_index_prev = 0;
        clear_data = 0;
+       slopeMax = slopeMin = 1;
      endif
 
      ## Wenn der Save-Button gedrueckt wurde
@@ -245,26 +254,44 @@ if !isempty(serialPortPath)
                 # Daten werden fuer alle dataStreams in das array uebernommen
 
                 dataStream(j).array(x_index)=adc;
+
                 if (abs(adc) < 0.0001)                % 'dataaspectratio' Error verhindern
                    dataStream(j).array(x_index)=0;
                 endif
 
-                if (beatDetect)
-                  # beatDetector laeuft aktuell nur auf dataStream(1)
-                  if ((dataStream(1).array(x_index) > beatThreshold) && !beatTrigger)
-                    # Doppel-Peaks unterdruecken
-                    if (x_index - beatOld) > (f_abtast / 10)
-                       beatIntervall = x_index - beatOld;
-                       beatOld = x_index;
-                       beatBPM = round(60/(beatIntervall*(1/f_abtast)));
-                       beatTrigger = 1;
+                # Detectoren laufen nur auf dataStream(1)
+                if (j == 1)  && (x_index > 2) # nur dataStream(1)
+                  # extremeDetection
+                  if (extrDetect)
+                     slopeAct = sign(dataStream(1).array(x_index)-dataStream(1).array(x_index-1));
+                     if (slopeAct ~= slopeOld)
+                       if (slopeAct < slopeOld) # Ubergang 1 >> -1 = Maximum
+                         beatBPM = round(60/((x_index-slopeMax)*(1/f_oct)));
+                         slopeMax = x_index;
+                         #irAC  = dataStream(1).array(slopeMax)-dataStream(1).array(slopeMin)
+                         #redAC = dataStream(2).array(slopeMax-1)-dataStream(2).array(slopeMin)
+                       else                     # Minimum
+                         slopeMin = x_index;
+                       endif
+                       slopeOld = slopeAct;
+                     endif
+                  endif
+                  # beatDetection
+                  if (beatDetect)
+                    if ((dataStream(1).array(x_index) > beatThreshold) && !beatTrigger)
+                      # Doppel-Peaks unterdruecken
+                      if (x_index - beatOld) > (f_abtast / 10)
+                         beatIntervall = x_index - beatOld;
+                         beatOld = x_index;
+                         beatBPM = round(60/(beatIntervall*(1/f_oct)));
+                         beatTrigger = 1;
+                      endif
+                    endif
+                    if ((dataStream(1).array(x_index) < beatThreshold) && beatTrigger)
+                      beatTrigger = 0;
                     endif
                   endif
-                  if ((dataStream(1).array(x_index) < beatThreshold) && beatTrigger)
-                    beatTrigger = 0;
-                  endif
                 endif
-
               endfor #j = 1:length(dataStream)
             endfor #i
 
