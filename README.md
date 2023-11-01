@@ -7,7 +7,7 @@ Datasets are encoded in lines of text terminated with CR\LF (or \r\n), as is the
 
 To have a consistent terminology the following definition is used:
 
-Each element of a dataset is a name-value pair (https://en.wikipedia.org/wiki/Name-value_pair) separated by a colon (name:value): 
+Each **element** of a **dataset** is a **name-value pair** (https://en.wikipedia.org/wiki/Name-value_pair) separated by a colon (name:value): 
 
 e.g. "EKG:234"
 
@@ -28,5 +28,5 @@ EKG:987,t:7<br>
 ### Data-Streams
 The Octave script splits the incoming datasets into "Data-Streams" of the different names:
 
-dataStream(1) "EKG" = 234,345,987, ...<br>
-dataStream(2) "t"   = 5,6,7, ...<br>
+dataStream(1): name="EKG" value stream = 234,345,987, ...<br>
+dataStream(2): name= "t"  value stream = 5,6,7, ...<br>
