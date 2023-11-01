@@ -13,7 +13,7 @@
 pkg load instrument-control;
 clear all;
 #
-min_bytesAvailable = 1;
+min_bytesAvailable = 10;
 min_x_index_step   = 10;
 # Digitale Filter konfigurieren
 # =============================
