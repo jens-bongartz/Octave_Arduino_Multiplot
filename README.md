@@ -25,7 +25,7 @@ EKG:234,t:5<br>
 EKG:345,t:6<br>
 EKG:987,t:7<br>
 
-### Data-Streams
+### Transform datasets into data-streams
 The Octave script splits the incoming datasets into "Data-Streams" of the different names:
 
 dataStream(1): name="EKG" value stream = 234,345,987, ...<br>
