@@ -82,7 +82,7 @@ if !isempty(serialPortPath)
   for i = 1:length(dataStream)
       regex_pattern = [regex_pattern dataStream(i).name ":(-?\\d+)"];
       if i < length(dataStream)
-          regex_pattern = [regex_pattern ","];
+          regex_pattern = [regex_pattern "|"];
       endif
   endfor
 
