@@ -12,9 +12,17 @@
 #  function digitalerFilter ist in separate Datei ausgelagert
 pkg load instrument-control;
 clear all;
+#
+baudrate = 115200;
+min_bytesAvailable = 10;
+min_x_index_step   = 1;
+peakDetect = 1;
+slopeDetect = 0;
+
 # Digitale Filter konfigurieren
 # =============================
 f_abtast = 200;
+#f_abtast = 13;
 f_HP = 20;
 f_TP = 10;
 f_NO = 50;
@@ -22,11 +30,15 @@ f_NO = 50;
 HP_ko = calcHPCoeff(f_abtast,f_HP);
 NO_ko = calcNotchCoeff(f_abtast,f_NO);
 TP_ko = calcTPCoeff(f_abtast,f_TP);
+DQ_ko  = [1 -1 0 0 0];                   # (x[n]-x[n-1])/1
+DQ2_ko = [1 0 -1 0 0];                   # (x[n]-x[n-2])/(2) (1)
 
 # Globale Variablen zur Programmsteuerung
 global HP_filtered = 1;
 global NO_filtered = 1;
 global TP_filtered = 1;
+global DQ_filtered = 0;
+global DQ2_filtered = 1;
 global quit_prg = 0;
 global clear_data = 0;
 global save_data = 0;
@@ -51,11 +63,18 @@ if !isempty(serialPortPath)
   # Atmung      = ATM / t       - fensterbreite = 400
   # Beat        = ATM / t       - fensterbreite = 1000
 
- # obj = dataStreamClass(name,plcolor,plot,filter)
-  dataStream(1) = dataStreamClass("ATM","red",1,1);
+# obj = dataStreamClass(name,plcolor,plot,filter)
+  dataStream(1) = dataStreamClass("PUL","red",1,1);
   dataStream(2) = dataStreamClass("t","blue",0,0);
   dataStream(1).ylim = [-20 20];  # auskommentieren wenn automatisch
   fensterbreite = 1000;
+##  dataStream(1) = dataStreamClass("ir","blue",1,1);
+##  dataStream(2) = dataStreamClass("rot","red",1,1);
+##  dataStream(3) = dataStreamClass("t","black",0,0);
+##  fensterbreite = 200;
+##  dataStream(1) = dataStreamClass("ATM","blue",1,1);
+##  dataStream(2) = dataStreamClass("t","red",0,0);
+##  fensterbreite = 400;
 
   # Aus den dataStream Namen wird das regex-Pattern erzeugt
   # =======================================================
@@ -63,7 +82,7 @@ if !isempty(serialPortPath)
   for i = 1:length(dataStream)
       regex_pattern = [regex_pattern dataStream(i).name ":(-?\\d+)"];
       if i < length(dataStream)
-          regex_pattern = [regex_pattern ","];
+          regex_pattern = [regex_pattern "|"];
       endif
   endfor
 
@@ -85,7 +104,7 @@ if !isempty(serialPortPath)
     if (dataStream(i).plot == 1)
       j=j+1;
       ## The function subplot returns a handle pointing to an object of type axes.
-      subPl(i) = subplot(spN,1,j);
+      subPl(j) = subplot(spN,1,j);
       set(subPl(j),"box","on","title",dataStream(i).name,"xlim",[1 fensterbreite]);
       # wenn ylim Grenzen nutzt
       if (sum(dataStream(j).ylim != 0))
@@ -97,18 +116,17 @@ if !isempty(serialPortPath)
   endfor
 
   # externe Funktionen
-  # ==================
+
   cap = GUI_Elements(fi_1);       % cap ist ein Array von captions!
   displayInfo(fi_1)
 
   # Oeffnen serialPort
-  #===================
   inBuffer = '';                    %% Buffer serielle Schnittstelle
   cr_lf = [char(13) char(10)];
 
   if (!isempty(serialPortPath))
     disp('Open SerialPort!')
-    serial_01 = serialport(serialPortPath,115200);
+    serial_01 = serialport(serialPortPath,baudrate);
     flush(serial_01);
   endif
 
@@ -141,25 +159,30 @@ if !isempty(serialPortPath)
   Bench_Time = 2;              # Sekunden
   x_index =  0;
   x_index_prev = 0;
-  min_bytesAvailable = 1;
-  min_x_index_step   = 1;
+
   # Benchmarking
   x_index_tic = 0;
-  f_oct = t_toc = cpu_load = 0;
+  f_oct = t_toc = cpu_load = 1;
   bytesReceived = 0;
   bytesPerSecond = 0;
   tic
   t_cpu = cputime;
-  # nicht genutzt
-  beatThreshold = 100;
-
+  # Peak Detection >>
+  peakThreshold = 100;
+  peakTrigger = 0;
+  peakOld = 0;
+  outBPM = 0;
+  # Slope Detection
+  slopeAct = 1;
+  slopeOld = -1;
+  slopeMax = slopeMin = 1;
   do
      ## Wenn der Clear-Button gedrueckt wurde
      if (clear_data)
        j = 0;
        for i = 1:length(dataStream);
          dataStream(i).array = [];
-         #dataStream(i).adc_plot = [];
+         dataStream(i).adc_plot = [];
          if (dataStream(i).plot > 0)
            j = j + 1;
            set(subPl(j),"xlim",[0 fensterbreite]);
@@ -168,6 +191,7 @@ if !isempty(serialPortPath)
        x_index = 0;
        x_index_prev = 0;
        clear_data = 0;
+       slopeMax = slopeMin = 1;
      endif
 
      ## Wenn der Save-Button gedrueckt wurde
@@ -220,18 +244,59 @@ if !isempty(serialPortPath)
                    if (HP_filtered)
                       [adc,dataStream(j).HP_sp] = digitalerFilter(adc,dataStream(j).HP_sp,HP_ko);
                    endif
+                   if (DQ_filtered)
+                      [adc,dataStream(j).DQ_sp] = digitalerFilter(adc,dataStream(j).DQ_sp,DQ_ko);
+                   endif
+                   if (DQ2_filtered)
+                      [adc,dataStream(j).DQ2_sp] = digitalerFilter(adc,dataStream(j).DQ2_sp,DQ2_ko);
+                   endif
                 endif # dataStream(k).filter > 0
                 # Daten werden fuer alle dataStreams in das array uebernommen
+
                 dataStream(j).array(x_index)=adc;
 
                 if (abs(adc) < 0.0001)                % 'dataaspectratio' Error verhindern
                    dataStream(j).array(x_index)=0;
                 endif
+
+                # Detectoren laufen nur auf dataStream(1)
+                if (j == 1)  && (x_index > 2) # nur dataStream(1)
+                  # Slope-Detection
+                  if (slopeDetect)
+                     slopeAct = sign(dataStream(1).array(x_index)-dataStream(1).array(x_index-1));
+                     if (slopeAct ~= slopeOld)
+                       if (slopeAct < slopeOld) # Ubergang 1 >> -1 = Maximum
+                         outBPM = round(60/((x_index-slopeMax)*(1/f_oct)));
+                         slopeMax = x_index;
+                         #irAC  = dataStream(1).array(slopeMax)-dataStream(1).array(slopeMin)
+                         #redAC = dataStream(2).array(slopeMax-1)-dataStream(2).array(slopeMin)
+                       else                     # Minimum
+                         slopeMin = x_index;
+                       endif
+                       slopeOld = slopeAct;
+                     endif
+                  endif
+                  # Peak-Detection
+                  if (peakDetect)
+                    if ((dataStream(1).array(x_index) > peakThreshold) && !peakTrigger)
+                      # Doppel-Peaks unterdruecken
+                      if (x_index - peakOld) > (f_abtast / 10)
+                         peakIntervall = x_index - peakOld;
+                         peakOld = x_index;
+                         outBPM = round(60/(peakIntervall*(1/f_oct)));
+                         peakTrigger = 1;
+                      endif
+                    endif
+                    if ((dataStream(1).array(x_index) < peakThreshold) && peakTrigger)
+                      peakTrigger = 0;
+                    endif
+                  endif
+                endif
               endfor #j = 1:length(dataStream)
             endfor #i
 
-            % Benchmarking pro Datenzeile (x_index)
-            % =====================================
+            # Benchmarking pro Datenzeile (alle Bench_Time Sekunden)
+
             if (toc > Bench_Time)
                t_toc = toc;
                f_oct = round(1/(t_toc / x_index_tic));
@@ -240,14 +305,18 @@ if !isempty(serialPortPath)
                x_index_tic = 0;
                bytesPerSecond = round(bytesReceived / t_toc);
                bytesReceived = 0;
-               #  Schwellenwert fuer Beat-Detection
-               # beatThreshold = (1/2)*(max(dataStream(1).array) - mean(dataStream(1).array));
+               #  Schwellenwert fuer Peak-Detection
+               if (peakDetect)
+                  if (max(dataStream(1).adc_plot) > 4*std(dataStream(1).adc_plot))
+                     peakThreshold = 0.5*max(dataStream(1).adc_plot);
+                  endif
+               endif
                tic
             endif
-            % ==============
          endif # (rec_data)
        endif # of posCRLF
      endif  # of bytesAvaiable
+
      # Grafikausgaben werden nur durchgefuehrt, wenn x_index hochzaehlt (rec_data = TRUE)
      # Vor der Grafikausgabe sollte geprueft werden, ob figure noch offen ist >> ishandle(fi_1)
      # Warten mit dem Redraw bis ausreichend neue Werte gesampelt sind
@@ -272,11 +341,11 @@ if !isempty(serialPortPath)
               endif
             endif
             # passender Teil des array wird in adc_plot umkopiert
-            adc_plot = dataStream(i).array(x_start:x_index);
+            dataStream(i).adc_plot = dataStream(i).array(x_start:x_index);
             x_index_prev = x_index;
             % Hier wird die Linie gezeichnet
             if (ishandle(fi_1))
-              set(subLi(j),"xdata",x_axis,"ydata",adc_plot);
+              set(subLi(j),"xdata",x_axis,"ydata",dataStream(i).adc_plot);
             endif
             drawnow();
          endif # (dataStream(i).plot==1)
@@ -287,9 +356,11 @@ if !isempty(serialPortPath)
          set(cap(3),"string",num2str(t_toc));
          set(cap(4),"string",num2str(cpu_load));
          set(cap(5),"string",num2str(bytesPerSecond));
+         set(cap(6),"string",num2str(outBPM));
        endif # ishandle(fi_1))
      endif # x_index - x_index_prev) > 20
-     %pause(0.05);
+     # Entlastung der CPU / des OS
+     #pause(0.05);
      pause(0.025);
   until(quit_prg);    %% Programmende mit Quit-Button
   clear serial_01;
