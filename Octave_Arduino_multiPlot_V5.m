@@ -63,18 +63,13 @@ if !isempty(serialPortPath)
   # Atmung      = ATM / t       - fensterbreite = 400
   # Beat        = ATM / t       - fensterbreite = 1000
 
-# obj = dataStreamClass(name,plcolor,plot,filter)
-  dataStream(1) = dataStreamClass("PUL","red",1,1);
+  # obj = dataStreamClass(name,plcolor,plot,filter)
+  #global dataStream;
+
+  dataStream(1) = dataStreamClass("EKG","red",1,1);
   dataStream(2) = dataStreamClass("t","blue",0,0);
-  dataStream(1).ylim = [-20 20];  # auskommentieren wenn automatisch
+  #dataStream(1).ylim = [-20 20];  # auskommentieren wenn automatisch
   fensterbreite = 1000;
-##  dataStream(1) = dataStreamClass("ir","blue",1,1);
-##  dataStream(2) = dataStreamClass("rot","red",1,1);
-##  dataStream(3) = dataStreamClass("t","black",0,0);
-##  fensterbreite = 200;
-##  dataStream(1) = dataStreamClass("ATM","blue",1,1);
-##  dataStream(2) = dataStreamClass("t","red",0,0);
-##  fensterbreite = 400;
 
   # Aus den dataStream Namen wird das regex-Pattern erzeugt
   # =======================================================
@@ -82,7 +77,7 @@ if !isempty(serialPortPath)
   for i = 1:length(dataStream)
       regex_pattern = [regex_pattern dataStream(i).name ":(-?\\d+)"];
       if i < length(dataStream)
-          regex_pattern = [regex_pattern "|"];
+          regex_pattern = [regex_pattern ","];
       endif
   endfor
 
