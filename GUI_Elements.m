@@ -16,8 +16,8 @@ function cap = GUI_Elements(fi_1)
 
   % "Notch" Checkbox
   global NO_filtered;
-  cb_NO = uicontrol(fi_1,"style","checkbox","string","Notch", ...
-                      "callback",@cb_NO_changed,"position",[110,0,90,30], ...
+  cb_NO = uicontrol(fi_1,"style","checkbox","string","NO", ...
+                      "callback",@cb_NO_changed,"position",[60,0,90,30], ...
                       "value", NO_filtered);
 
   function cb_NO_changed(~,~);
@@ -27,11 +27,29 @@ function cap = GUI_Elements(fi_1)
   % "TP" Checkbox
   global TP_filtered;
   cb_TP = uicontrol(fi_1,"style","checkbox","string","TP", ...
-                    "callback",@cb_TP_changed,"position",[210,0,90,30], ...
+                    "callback",@cb_TP_changed,"position",[110,0,90,30], ...
                     "value", TP_filtered);
 
   function cb_TP_changed(~,~);
     TP_filtered = not(TP_filtered);
+  endfunction
+
+  global DQ_filtered;
+  cb_DQ = uicontrol(fi_1,"style","checkbox","string","DQ", ...
+                    "callback",@cb_DQ_changed,"position",[160,0,90,30], ...
+                    "value", DQ_filtered);
+
+  function cb_DQ_changed(~,~);
+    DQ_filtered = not(DQ_filtered);
+  endfunction
+
+  global DQ2_filtered;
+  cb_DQ2 = uicontrol(fi_1,"style","checkbox","string","DQ2", ...
+                    "callback",@cb_DQ2_changed,"position",[210,0,90,30], ...
+                    "value", DQ2_filtered);
+
+  function cb_DQ2_changed(~,~);
+    DQ2_filtered = not(DQ2_filtered);
   endfunction
 
   % Clear-Button
@@ -72,5 +90,9 @@ function cap = GUI_Elements(fi_1)
   cap(3) = uicontrol(fi_1,"style","text","string","tic","position",[610,0,50,30]);
   cap(4) = uicontrol(fi_1,"style","text","string","cpu","position",[670,0,50,30]);
   cap(5) = uicontrol(fi_1,"style","text","string","cpu","position",[730,0,50,30]);
+  cap(6) = uicontrol(fi_1,"style","text","string","BPM","position",[20 300,50,30], ...
+                     "fontsize",20);
+  cap(7) = uicontrol(fi_1,"style","text","string","BPM","position",[20 340,50,30], ...
+                     "fontsize",20);
 endfunction
 
