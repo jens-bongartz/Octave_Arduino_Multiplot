@@ -4,7 +4,7 @@
 #  Die Daten können mit einer Kaskade von digitalen Filtern gefiltert werden.
 #
 #  (c) Jens Bongartz, Oktober 2023, RheinAhrCampus Remagen
-#  Stand: 29.10.2023
+#  Stand: 06.11.2023
 #  ==========================================================================
 #  Am 30.10.2023 Reihenfolge der digitalen Filter verändert
 #  ist: NO > TP > HP
@@ -23,26 +23,28 @@ slopeDetect = 0;
 # =============================
 f_abtast = 200;
 #f_abtast = 13;
-f_HP = 20;
-f_TP = 10;
+#f_HP = 20;                              # fuer Pulsmesser
+#f_TP = 10;                              # fuer Pulsmesser
+f_HP = 1;
+f_TP = 40;
 f_NO = 50;
-
-HP_ko = calcHPCoeff(f_abtast,f_HP);
-NO_ko = calcNotchCoeff(f_abtast,f_NO);
-TP_ko = calcTPCoeff(f_abtast,f_TP);
-DQ_ko  = [1 -1 0 0 0];                   # (x[n]-x[n-1])/1
-DQ2_ko = [1 0 -1 0 0];                   # (x[n]-x[n-2])/(2) (1)
 
 # Globale Variablen zur Programmsteuerung
 global HP_filtered = 1;
 global NO_filtered = 1;
 global TP_filtered = 1;
 global DQ_filtered = 0;
-global DQ2_filtered = 1;
+global DQ2_filtered = 0;
 global quit_prg = 0;
 global clear_data = 0;
 global save_data = 0;
 global rec_data = 1;
+
+HP_ko = calcHPCoeff(f_abtast,f_HP);
+NO_ko = calcNotchCoeff(f_abtast,f_NO);
+TP_ko = calcTPCoeff(f_abtast,f_TP);
+DQ_ko  = [1 -1 0 0 0];                   # (x[n]-x[n-1])/1
+DQ2_ko = [1 0 -1 0 0];                   # (x[n]-x[n-2])/(2) (1)
 
 # Automatische Suche nach passendem seriellen Port
 serialPortPath = checkSerialPorts()
@@ -248,11 +250,11 @@ if !isempty(serialPortPath)
                 endif # dataStream(k).filter > 0
                 # Daten werden fuer alle dataStreams in das array uebernommen
 
-                dataStream(j).array(x_index)=adc;
-
                 if (abs(adc) < 0.0001)                % 'dataaspectratio' Error verhindern
-                   dataStream(j).array(x_index)=0;
+                   adc = 0;
                 endif
+
+                dataStream(j).array(x_index)=adc;
 
                 # Detectoren laufen nur auf dataStream(1)
                 if (j == 1)  && (x_index > 2) # nur dataStream(1)
@@ -322,13 +324,13 @@ if !isempty(serialPortPath)
          if (dataStream(i).plot == 1)
             j=j+1;
             % x_start darf nicht < 1 sein / X-Achse skalieren
-            if (x_index > fensterbreite)
+            if (x_index > fensterbreite)                      # Fenster scrollt
               x_start = x_index - fensterbreite;
               x_axis =  x_start:x_index;
               if (ishandle(fi_1))
                 set(subPl(j),"xlim",[x_start x_index]);
               endif
-            else
+            else                                              # Fenster scrollt nicht
               x_start = 1;
               x_axis = 1:fensterbreite;
               if (ishandle(fi_1))
