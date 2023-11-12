@@ -4,12 +4,11 @@
 #  Die Daten können mit einer Kaskade von digitalen Filtern gefiltert werden.
 #
 #  (c) Jens Bongartz, Oktober 2023, RheinAhrCampus Remagen
-#  Stand: 06.11.2023
+#  Stand: 12.11.2023
 #  ==========================================================================
 #  Am 30.10.2023 Reihenfolge der digitalen Filter verändert
 #  ist: NO > TP > HP
 #  war: HP > NO > TP
-#  function digitalerFilter ist in separate Datei ausgelagert
 pkg load instrument-control;
 clear all;
 #
@@ -22,12 +21,10 @@ slopeDetect = 0;
 # Digitale Filter konfigurieren
 # =============================
 f_abtast = 200;
-#f_abtast = 13;
-#f_HP = 20;                              # fuer Pulsmesser
-#f_TP = 10;                              # fuer Pulsmesser
 f_HP = 1;
 f_TP = 40;
 f_NO = 50;
+# fuer Pulsmesser  f_HP = 20 + f_TP = 10;
 
 # Globale Variablen zur Programmsteuerung
 global HP_filtered = 1 NO_filtered = 1 TP_filtered = 1 DQ_filtered = 0 DQ2_filtered = 0;
@@ -48,8 +45,8 @@ if !isempty(serialPortPath)
   disp(serialPortPath);
   #  Konfiguration der dataStreams
   # obj = dataStreamClass(name,plcolor,dt,plotwidth,plot,filter)
-  dataStream(1) = dataStreamClass("EKG","red",5,800,1,1);
-  #dataStream(2) = dataStreamClass("ATM","blue",1,1);
+  dataStream(1) = dataStreamClass("SIM","red",5,800,1,1);
+  dataStream(2) = dataStreamClass("SIG2","blue",20,200,1,1);
 
   # Liste aller dataStream Namen erstellen fuer Dictonary
   namelist = {};
@@ -170,8 +167,7 @@ if !isempty(serialPortPath)
            set(subPl(j),"xlim",[0 dataStream(i).plotwidth*dataStream(i).dt]);
          endif
        endfor
-       x_index = 0;
-       x_index_prev = 0;
+       x_index = 0; x_index_prev = 0;
        clear_data = 0;
        slopeMax = slopeMin = 1;
      endif
@@ -235,7 +231,6 @@ if !isempty(serialPortPath)
                     [adc,dataStream(j).DQ2_sp] = digitalerFilter(adc,dataStream(j).DQ2_sp,DQ2_ko);
                  endif
               endif # dataStream(k).filter > 0
-                # Daten werden fuer alle dataStreams in das array uebernommen
 
               if (abs(adc) < 0.0001)                % 'dataaspectratio' Error verhindern
                  adc = 0;
@@ -244,9 +239,7 @@ if !isempty(serialPortPath)
               dataStream(j).addSample(adc,sample_t);
 
           endfor
-
             # Benchmarking pro Datenzeile (alle Bench_Time Sekunden)
-
             if (toc > Bench_Time)
                t_toc = toc;
                f_oct = round(1/(t_toc / x_index_tic));
@@ -255,12 +248,6 @@ if !isempty(serialPortPath)
                x_index_tic = 0;
                bytesPerSecond = round(bytesReceived / t_toc);
                bytesReceived = 0;
-               #  Schwellenwert fuer Peak-Detection
-##               if (peakDetect)
-##                  if (max(dataStream(1).adc_plot) > 4*std(dataStream(1).adc_plot))
-##                     peakThreshold = 0.5*max(dataStream(1).adc_plot);
-##                  endif
-##               endif
                tic
             endif
          endif # (rec_data)
@@ -277,7 +264,7 @@ if !isempty(serialPortPath)
          if (dataStream(i).plot == 1)
             j=j+1;
 
-            if (x_index > dataStream(i).plotwidth)                      # Fenster scrollt
+            if (length(dataStream(i).array) > dataStream(i).plotwidth)                      # Fenster scrollt
               [adc_plot, data_t] = dataStream(i).lastSamples(dataStream(i).plotwidth);
               x_axis = [data_t(1) data_t(end)];
               if (ishandle(fi_1))
@@ -309,8 +296,8 @@ if !isempty(serialPortPath)
        endif # ishandle(fi_1))
      endif # x_index - x_index_prev) > 20
      # Entlastung der CPU / des OS
-     #pause(0.05);
-     pause(0.025);
+     #pause(0.05);    # 1/20 Sekunde
+     pause(0.025);    # 1/40 Sekunde
   until(quit_prg);    %% Programmende mit Quit-Button
   clear serial_01;
 endif
