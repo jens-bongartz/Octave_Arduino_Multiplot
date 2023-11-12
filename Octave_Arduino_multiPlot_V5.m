@@ -69,20 +69,37 @@ if !isempty(serialPortPath)
   #global dataStream;
 
   dataStream(1) = dataStreamClass("EKG","red",1,1);
-  dataStream(2) = dataStreamClass("t","blue",0,0);
-  #dataStream(1).ylim = [-20 20];  # auskommentieren wenn automatisch
-  fensterbreite = 1000;
+  dataStream(1).plotwidth = 1000;
+  #dataStream(2) = dataStreamClass("ATM","blue",1,1);
+  # Liste aller dataStream Namen erstellen fuer Dictonary
+  namelist = {};
+  for i = 1:length(dataStream)
+    namelist{end+1} = dataStream(i).name;
+  endfor
+  values = 1:numel(dataStream);
+  streamSelector = containers.Map (namelist,values);
+##  disp(streamSelector('ATM'))
+##  disp(streamSelector('EKG'))
 
   # Aus den dataStream Namen wird das regex-Pattern erzeugt
   # =======================================================
-  regex_pattern = "";
+  regex_pattern = '(';
   for i = 1:length(dataStream)
-      regex_pattern = [regex_pattern dataStream(i).name ":(-?\\d+)"];
+      regex_pattern = [regex_pattern dataStream(i).name];
       if i < length(dataStream)
-          regex_pattern = [regex_pattern ","];
+          regex_pattern = [regex_pattern '|'];
       endif
   endfor
-
+  regex_pattern = [regex_pattern '):(-?\d+),t:(\d+)'];
+##
+##  regex_pattern = "";
+##  for i = 1:length(dataStream)
+##      regex_pattern = [regex_pattern dataStream(i).name ":(-?\\d+)"];
+##      if i < length(dataStream)
+##          regex_pattern = [regex_pattern ","];
+##      endif
+##  endfor
+##
   % Initialisiere Plot-Fenster
   % ==========================
   graphics_toolkit("qt");
@@ -102,7 +119,7 @@ if !isempty(serialPortPath)
       j=j+1;
       ## The function subplot returns a handle pointing to an object of type axes.
       subPl(j) = subplot(spN,1,j);
-      set(subPl(j),"box","on","title",dataStream(i).name,"xlim",[1 fensterbreite]);
+      set(subPl(j),"box","on","title",dataStream(i).name,"xlim",[1 dataStream(i).plotwidth]);
       # wenn ylim Grenzen nutzt
       if (sum(dataStream(j).ylim != 0))
         set(subPl(j),"ylim",dataStream(i).ylim);
@@ -182,7 +199,7 @@ if !isempty(serialPortPath)
          dataStream(i).adc_plot = [];
          if (dataStream(i).plot > 0)
            j = j + 1;
-           set(subPl(j),"xlim",[0 fensterbreite]);
+           set(subPl(j),"xlim",[0 dataStream(i).plotwidth]);
          endif
        endfor
        x_index = 0;
@@ -227,70 +244,40 @@ if !isempty(serialPortPath)
             # "EKG:234,t:5 -- EKG:345,t:5 --- EKG:456,t:5 ---"
             # matches = [234,5],[345,5],[456,5]
             for i = 1:length(matches)
+              streamName = matches{i}{1};
+              adc        = str2num(matches{i}{2});
+              sample_t   = str2num(matches{i}{3});
+
+              j = streamSelector(streamName);
+
               x_index++;
               x_index_tic++;
-              for j = 1:length(dataStream)
-                adc = str2num(matches{i}{j});
-                if (dataStream(j).filter > 0)
-                   if (NO_filtered)
-                      [adc,dataStream(j).NO_sp] = digitalerFilter(adc,dataStream(j).NO_sp,NO_ko);
-                   endif
-                   if (TP_filtered)
-                      [adc,dataStream(j).TP_sp] = digitalerFilter(adc,dataStream(j).TP_sp,TP_ko);
-                   endif
-                   if (HP_filtered)
-                      [adc,dataStream(j).HP_sp] = digitalerFilter(adc,dataStream(j).HP_sp,HP_ko);
-                   endif
-                   if (DQ_filtered)
-                      [adc,dataStream(j).DQ_sp] = digitalerFilter(adc,dataStream(j).DQ_sp,DQ_ko);
-                   endif
-                   if (DQ2_filtered)
-                      [adc,dataStream(j).DQ2_sp] = digitalerFilter(adc,dataStream(j).DQ2_sp,DQ2_ko);
-                   endif
-                endif # dataStream(k).filter > 0
+              if (dataStream(j).filter > 0)
+                 if (NO_filtered)
+                    [adc,dataStream(j).NO_sp] = digitalerFilter(adc,dataStream(j).NO_sp,NO_ko);
+                 endif
+                 if (TP_filtered)
+                    [adc,dataStream(j).TP_sp] = digitalerFilter(adc,dataStream(j).TP_sp,TP_ko);
+                 endif
+                 if (HP_filtered)
+                    [adc,dataStream(j).HP_sp] = digitalerFilter(adc,dataStream(j).HP_sp,HP_ko);
+                 endif
+                 if (DQ_filtered)
+                    [adc,dataStream(j).DQ_sp] = digitalerFilter(adc,dataStream(j).DQ_sp,DQ_ko);
+                 endif
+                 if (DQ2_filtered)
+                    [adc,dataStream(j).DQ2_sp] = digitalerFilter(adc,dataStream(j).DQ2_sp,DQ2_ko);
+                 endif
+              endif # dataStream(k).filter > 0
                 # Daten werden fuer alle dataStreams in das array uebernommen
 
-                if (abs(adc) < 0.0001)                % 'dataaspectratio' Error verhindern
-                   adc = 0;
-                endif
+              if (abs(adc) < 0.0001)                % 'dataaspectratio' Error verhindern
+                 adc = 0;
+              endif
 
-                dataStream(j).array(x_index)=adc;
+              dataStream(j).addSample(adc,sample_t);
 
-                # Detectoren laufen nur auf dataStream(1)
-                if (j == 1)  && (x_index > 2) # nur dataStream(1)
-                  # Slope-Detection
-                  if (slopeDetect)
-                     slopeAct = sign(dataStream(1).array(x_index)-dataStream(1).array(x_index-1));
-                     if (slopeAct ~= slopeOld)
-                       if (slopeAct < slopeOld) # Ubergang 1 >> -1 = Maximum
-                         outBPM = round(60/((x_index-slopeMax)*(1/f_oct)));
-                         slopeMax = x_index;
-                         #irAC  = dataStream(1).array(slopeMax)-dataStream(1).array(slopeMin)
-                         #redAC = dataStream(2).array(slopeMax-1)-dataStream(2).array(slopeMin)
-                       else                     # Minimum
-                         slopeMin = x_index;
-                       endif
-                       slopeOld = slopeAct;
-                     endif
-                  endif
-                  # Peak-Detection
-                  if (peakDetect)
-                    if ((dataStream(1).array(x_index) > peakThreshold) && !peakTrigger)
-                      # Doppel-Peaks unterdruecken
-                      if (x_index - peakOld) > (f_abtast / 10)
-                         peakIntervall = x_index - peakOld;
-                         peakOld = x_index;
-                         outBPM = round(60/(peakIntervall*(1/f_oct)));
-                         peakTrigger = 1;
-                      endif
-                    endif
-                    if ((dataStream(1).array(x_index) < peakThreshold) && peakTrigger)
-                      peakTrigger = 0;
-                    endif
-                  endif
-                endif
-              endfor #j = 1:length(dataStream)
-            endfor #i
+          endfor
 
             # Benchmarking pro Datenzeile (alle Bench_Time Sekunden)
 
@@ -303,11 +290,11 @@ if !isempty(serialPortPath)
                bytesPerSecond = round(bytesReceived / t_toc);
                bytesReceived = 0;
                #  Schwellenwert fuer Peak-Detection
-               if (peakDetect)
-                  if (max(dataStream(1).adc_plot) > 4*std(dataStream(1).adc_plot))
-                     peakThreshold = 0.5*max(dataStream(1).adc_plot);
-                  endif
-               endif
+##               if (peakDetect)
+##                  if (max(dataStream(1).adc_plot) > 4*std(dataStream(1).adc_plot))
+##                     peakThreshold = 0.5*max(dataStream(1).adc_plot);
+##                  endif
+##               endif
                tic
             endif
          endif # (rec_data)
@@ -324,21 +311,23 @@ if !isempty(serialPortPath)
          if (dataStream(i).plot == 1)
             j=j+1;
             % x_start darf nicht < 1 sein / X-Achse skalieren
-            if (x_index > fensterbreite)                      # Fenster scrollt
-              x_start = x_index - fensterbreite;
+            if (x_index > dataStream(i).plotwidth)                      # Fenster scrollt
+              x_start = x_index - dataStream(i).plotwidth;
               x_axis =  x_start:x_index;
               if (ishandle(fi_1))
                 set(subPl(j),"xlim",[x_start x_index]);
               endif
+              dataStream(i).adc_plot = dataStream(i).lastSamples(dataStream(i).plotwidth);
             else                                              # Fenster scrollt nicht
               x_start = 1;
-              x_axis = 1:fensterbreite;
+              x_axis = 1:dataStream(i).plotwidth;
               if (ishandle(fi_1))
-                set(subPl(j),"xlim",[x_start fensterbreite]);
+                set(subPl(j),"xlim",[x_start dataStream(i).plotwidth]);
               endif
+              dataStream(i).adc_plot = dataStream(i).lastSamples(dataStream(i).ar_index-1);
             endif
             # passender Teil des array wird in adc_plot umkopiert
-            dataStream(i).adc_plot = dataStream(i).array(x_start:x_index);
+            #dataStream(i).adc_plot = dataStream(i).lastSamples(dataStream(i).plotwidth);
             x_index_prev = x_index;
             % Hier wird die Linie gezeichnet
             if (ishandle(fi_1))

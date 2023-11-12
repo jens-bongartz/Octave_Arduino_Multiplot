@@ -1,28 +1,23 @@
 % Der gegebene String
-text = "SIM:106,dt:5\r\nSIM:106,dt:5\r\nSIM:106,dt:5\r\nSIM:106,dt:5\r\nSIM:106,dt:5\r\n\
-        SIM:106,dt:5\r\nSIM:106,dt:5\r\nSIM:106,dt:5\r\nSIM:106,dt:5\r\nSIM:106,dt:5\r\n\
-        SIM:106,dt:5\r\nSIM:106,dt:5\r\nSIM:106,dt:5\r\nSIM:106,dt:5\r\nSIM:106,dt:5\r\n\
-        SIM:106,dt:5\r\nSIM:106,dt:5\r\nSIM:106,dt:5\r\nSIM:106,dt:5\r\nSIM:106,dt:5\r\n\
-        SIM:106,dt:5\r\nSIM:106,dt:5\r\nSIM:106,dt:5\r\nSIM:106,dt:5\r\nSIM:106,dt:5\r\n\
-        SIM:106,dt:5\r\nSIM:106,dt:5\r\nSIM:106,dt:5\r\nSIM:106,dt:5\r\nSIM:106,dt:5\r\n\
-        SIM:106,dt:5\r\nSIM:106,dt:5\r\nEKG:106,dt:10\r\nSIM:106,dt:5\r\nSIM:106,dt:5\r\n\
-        SIM:106,dt:5\r\nSIM:106,dt:5\r\nSIM:106,dt:5\r\nSIM:106,dt:5\r\nSIM:106,dt:5\r\n\
-        SIM:106,dt:5\r\nSIM:106,dt:5\r\nSIM:106,dt:5\r\nSIM:106,dt:5\r\nSIM:106,dt:5\r\n\
-        SIM:106,dt:5\r\nEKG:106,dt:10\r\nSIM:106,dt:5\r\nSIM:106,dt:5\r\nSIM:106,dt:5\r\n";
+text = "EKG:106,dt:10\r\nSIM:106,dt:5\r\nSIM:106,dt:5\r\n\
+        SIM:106,dt:5\r\nSIM:106,dt:5\r\nSIM:106,dt:5\r\n\
+        PUL:108,dt:15\r\nEKG:106,dt:10\r\nSIM:106,dt:5\r\n\
+        PUL:108,dt:25\r\nSIM:106,dt:5\r\n";
 
 % Die zu suchenden Zeichenfolgen
-suchzeichenfolgen = {'SIM', 'EKG'};
+suchzeichenfolgen = {'SIM', 'EKG','PUL'};
 anzahl_suchbegriffe = numel(suchzeichenfolgen);
 
 % Das benannte REGEX-Muster, um die Werte nach den Zeichenfolgen und "dt:" zu extrahieren
 regex_muster = '(';
 for i = 1:anzahl_suchbegriffe
-    regex_muster = [regex_muster suchzeichenfolgen{i} ':(\d+),dt:(\d+)'];
+    regex_muster = [regex_muster suchzeichenfolgen{i}];
     if i < anzahl_suchbegriffe
         regex_muster = [regex_muster '|'];
     end
 end
-regex_muster = [regex_muster ')'];
+regex_muster = [regex_muster '):(\d+),dt:(\d+)']
+
 
 % Die Suche nach den Mustern im Eingabestring
 treffer = regexp(text, regex_muster, 'tokens');

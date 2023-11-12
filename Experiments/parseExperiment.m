@@ -2,10 +2,10 @@
 text = "SIM:106,dt:5\r\nSIM:106,dt:5\r\nSIM:-106,dt:5\r\nSIM:106,dt:5\r\EKG:-100,dt:10\r\nSIM:106,dt:5\r\nPUL:108,dt:15\r\nSIM:106,dt:5\r\nSIM:106,dt:5\r\nSIM:106,dt:5\r\EKG:100,dt:10\r\nSIM:106,dt:5\r\nSIM:106,dt:5\r\nPUL:106,dt:15\r\n";
 
 % Das benannte REGEX-Muster, um die Werte nach "SIM:" und "EKG:" sowie "dt:" zu extrahieren
-regex_muster = '(SIM|EKG|PUL):(-?\d+),dt:(\d+)';
+regex_muster = '(SIM|EKG|PUL):(-?\d+),dt:(\d+)'
 
 % Die Suche nach den Mustern im Eingabestring
-treffer = regexp(text, regex_muster, 'tokens');
+treffer = regexp(text, regex_muster, 'tokens')
 
 % Listen, um die extrahierten Werte zu speichern
 sim_werte = [];
