@@ -1,11 +1,19 @@
 # Das Skript liest in Multiplot gespeicherte Daten wieder ein
 # und zeigt sie in Plot-Fenster an
 #
-readData = load("signal02.txt");
-col_1 = readData.dataMatrix(:,1);
-col_2 = readData.dataMatrix(:,2);
-figure 1
-plot(col_1)
-figure 2
-plot(col_2)
+dataStream = [];
+
+readData = load("testsave.txt");
+streamCount = (length(readData.dataMatrix)/3)
+
+for i = 1:streamCount
+  dataStream(i).name = readData.dataMatrix{(i-1)*3+1};
+  dataStream(i).array = readData.dataMatrix{(i-1)*3+2};
+  dataStream(i).t     = readData.dataMatrix{(i-1)*3+3};
+endfor
+
+for i = 1:length(dataStream)
+  figure()
+  plot(dataStream(i).t,dataStream(i).array)
+endfor
 

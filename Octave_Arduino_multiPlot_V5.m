@@ -6,17 +6,17 @@
 #  (c) Jens Bongartz, Oktober 2023, RheinAhrCampus Remagen
 #  Stand: 13.11.2023
 #  ==========================================================================
-#  Am 30.10.2023 Reihenfolge der digitalen Filter verändert
-#  ist: NO > TP > HP
-#  war: HP > NO > TP
+
 pkg load instrument-control;
 clear all;
 #  Konfiguration der dataStreams
 # obj = dataStreamClass(name,plcolor,dt,plotwidth,plot,filter)
 dataStream(1) = dataStreamClass("SIM","red",5,800,1,1);
+dataStream(1).length = 3000;
 # createFilter(f_abtast,f_HP,f_NO,f_TP)
 dataStream(1).createFilter(200,1,50,40);
 dataStream(2) = dataStreamClass("SIG","blue",20,200,1,1);
+dataStream(1).length = 3000;
 # createFilter(f_abtast,f_HP,f_NO,f_TP)
 dataStream(2).createFilter(50,1,10,20);
 
@@ -155,11 +155,12 @@ if !isempty(serialPortPath)
      ## Wenn der Save-Button gedrueckt wurde
      if (save_data)
        rec_data = 0;
-       dataMatrix = [];
+       dataMatrix = {};
        for i = 1:length(dataStream)
-         dataMatrix = [dataMatrix ; dataStream(i).array];
+         dataMatrix{end+1} = dataStream(i).name;
+         dataMatrix{end+1} = dataStream(i).array;
+         dataMatrix{end+1} = dataStream(i).t;
        endfor
-       dataMatrix = dataMatrix';
        myfilename = uiputfile();
        if (myfilename != 0)
           save("-text",myfilename,"dataMatrix");

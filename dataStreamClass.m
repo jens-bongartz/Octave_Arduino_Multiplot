@@ -4,15 +4,14 @@ classdef dataStreamClass < handle
     properties
         name = "";
         array = [];              # in array[] stehen alle Messdaten seit CLEAR
+        ar_index = 1;
+        length = 3000;
         t = [];
         dt    = 5;
         t_sum = 0;
-        ar_index = 1;
-        adc_plot = [];
         plotwidth = 800;
         plot = 1;
         plcolor = "";
-        length = 3000;
         ylim = 0;                 #yalternativ lim = [0 100];
         filter = 1;
         HP_sp  = [0 0 0 0 0 0];    # Filter-Speicher
@@ -49,7 +48,9 @@ classdef dataStreamClass < handle
         function addSample(self,sample,sample_t)
           # Statusvariablen ob Filter gesetzt sind
           global HP_filtered NO_filtered TP_filtered DQ_filtered DQ2_filtered;
-
+          #  Am 30.10.2023 Reihenfolge der digitalen Filter verändert
+          #  ist: NO > TP > HP
+          #  war: HP > NO > TP
           if (self.filter > 0)
             if (NO_filtered)
               [sample,self.NO_sp] = digitalerFilter(sample,self.NO_sp,self.NO_ko);
