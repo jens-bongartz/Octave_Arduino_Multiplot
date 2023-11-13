@@ -24,6 +24,11 @@ classdef dataStreamClass < handle
         TP_ko  = [0 0 0 0 0];
         DQ_ko  = [0 0 0 0 0];
         DQ2_ko  = [0 0 0 0 0];
+        slopeDetector = 0;
+        lastSample = '';
+        lastSlope = 1;
+        lastMaxTime = 0;
+        BMP = 0;
     endproperties
 
     methods (Access=public)
@@ -69,19 +74,32 @@ classdef dataStreamClass < handle
              endif
           endif
 
-          if (abs(sample) < 0.0001)                % 'dataaspectratio' Error verhindern
+          if (abs(sample) < 0.0001)        # 'dataaspectratio' Error verhindern
             sample = 0;
           endif
-
+          # Sample im Ringspeicher ablegen
           self.array(self.ar_index)=sample;
-
+          # Zeit im Zeit-Ringspeicher ablegen
           self.t_sum = self.t_sum + sample_t;
           self.t(self.ar_index) = self.t_sum;
-
+          # Ringspeicher Indexing
           self.ar_index = self.ar_index + 1;
           if (self.ar_index > self.length)
             self.ar_index = 1;
           endif
+
+          # Slope-Detector
+          if ((self.slopeDetector) && isnumeric(self.lastSample))
+            slope = sign(sample - self.lastSample);
+            if (slope ~= self.lastSlope)
+              if (slope < self.lastSlope) # Ubergang 1 >> -1 = Maximum
+                 self.BMP = round(60000 / (self.t_sum - self.lastMaxTime));
+                 self.lastMaxTime = self.t_sum;
+              endif
+            endif
+            self.lastSlope  = slope;
+          endif
+          self.lastSample = sample;
         endfunction
 
         function [ret_array, ret_time] = lastSamples(self,n)

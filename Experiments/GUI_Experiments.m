@@ -4,7 +4,7 @@ fi=figure(1,'visible','off');
 #fi=figure(1);
 #get(fi)
 
-set(fi,'position', [1 1 screensize(3) screensize(4)],'resize','off');
+#set(fi,'position', [1 1 screensize(3) screensize(4)],'resize','off');
 #set(fi,'windowstate','fullscreen');
 clf
 pl=subplot(2,1,1);

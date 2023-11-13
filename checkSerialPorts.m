@@ -1,4 +1,4 @@
-function portReturn = checkSerialPorts()
+function portReturn = checkSerialPorts(baudrate)
   pkg load instrument-control
   fehler = false;
   ports = serialportlist();
@@ -8,7 +8,7 @@ function portReturn = checkSerialPorts()
   while(portIndex <= length(ports) && !port_found)
     #disp(ports{portIndex})
     try
-      serial_01 = serialport(ports{portIndex});
+      serial_01 = serialport(ports{portIndex},baudrate);
     catch
       #disp("Fehler aufgetreten:")
       #disp(lasterror.message)

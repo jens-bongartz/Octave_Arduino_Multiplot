@@ -6,7 +6,6 @@
 #  (c) Jens Bongartz, Oktober 2023, RheinAhrCampus Remagen
 #  Stand: 13.11.2023
 #  ==========================================================================
-
 pkg load instrument-control;
 clear all;
 #  Konfiguration der dataStreams
@@ -15,22 +14,24 @@ dataStream(1) = dataStreamClass("SIM","red",5,800,1,1);
 dataStream(1).length = 3000;
 # createFilter(f_abtast,f_HP,f_NO,f_TP)
 dataStream(1).createFilter(200,1,50,40);
+dataStream(1).slopeDetector = 1;
+
 dataStream(2) = dataStreamClass("SIG","blue",20,200,1,1);
-dataStream(1).length = 3000;
+dataStream(2).length = 3000;
 # createFilter(f_abtast,f_HP,f_NO,f_TP)
 dataStream(2).createFilter(50,1,10,20);
-
-baudrate = 115200;
-min_bytesAvailable = 10;
-min_datasetCounter_step   = 1;
+dataStream(2).slopeDetector = 1;
 
 # Globale Variablen zur Programmsteuerung
 global HP_filtered = 1 NO_filtered = 1 TP_filtered = 1 DQ_filtered = 0 DQ2_filtered = 0;
 global quit_prg = 0 clear_data = 0 save_data = 0 rec_data = 1;
 
+baudrate = 115200;
+min_bytesAvailable = 10;
+min_datasetCounter_step   = 1;
 # Automatische Suche nach passendem seriellen Port
 disp('Seraching Serial Port ... ')
-serialPortPath = checkSerialPorts()
+serialPortPath = checkSerialPorts(baudrate)
 
 # Der weitere Teil wird nur ausgefuehrt, wenn serielle Schnittstelle gefunden wurde
 if !isempty(serialPortPath)
@@ -198,7 +199,7 @@ if !isempty(serialPortPath)
               # Filterung geschieht in addSample
               dataStream(j).addSample(adc,sample_t);
 
-          endfor
+            endfor
             # Benchmarking pro Datenzeile (alle Bench_Time Sekunden)
             if (toc > Bench_Time)
                t_toc = toc;
@@ -220,18 +221,19 @@ if !isempty(serialPortPath)
          # wenn plot == 1 dann wird das array des dataStream geplottet >> adc_plot
          if (dataStream(i).plot == 1)
             j=j+1;
-
             if (length(dataStream(i).array) > dataStream(i).plotwidth)                      # Fenster scrollt
               [adc_plot, data_t] = dataStream(i).lastSamples(dataStream(i).plotwidth);
               x_axis = [data_t(1) data_t(end)];
               if (ishandle(fi_1))
                 set(subPl(j),"xlim",x_axis);
+                legend(subPl(j),"location","northwestoutside","string",dataStream(i).BMP);
               endif
             else                                              # Fenster scrollt nicht
               [adc_plot, data_t] = dataStream(i).lastSamples(dataStream(i).ar_index-1);
               x_axis = [0 dataStream(i).plotwidth*dataStream(i).dt];
               if (ishandle(fi_1))
                 set(subPl(j),"xlim",x_axis);
+                legend(subPl(j),"location","northwestoutside","string",dataStream(i).BMP);
               endif
             endif
 
@@ -249,7 +251,7 @@ if !isempty(serialPortPath)
          set(cap(3),"string",num2str(t_toc));
          set(cap(4),"string",num2str(cpu_load));
          set(cap(5),"string",num2str(bytesPerSecond));
-         set(cap(6),"string",num2str(outBPM));
+##         set(cap(6),"string",num2str(outBPM));
        endif # ishandle(fi_1))
      endif # datasetCounter - datasetCounter_prev) > 20
      # Entlastung der CPU / des OS
