@@ -18,17 +18,23 @@ classdef dataStreamClass < handle
         NO_sp  = [0 0 0 0 0 0];    # Filter-Speicher
         TP_sp  = [0 0 0 0 0 0];    # Filter-Speicher
         DQ_sp  = [0 0 0 0 0 0];    # Differenzenquotient
-        DQ2_sp = [0 0 0 0 0 0];   # Differenzenquotient
+        DQ2_sp = [0 0 0 0 0 0];    # Differenzenquotient
         HP_ko  = [0 0 0 0 0];
         NO_ko  = [0 0 0 0 0];
         TP_ko  = [0 0 0 0 0];
         DQ_ko  = [0 0 0 0 0];
         DQ2_ko  = [0 0 0 0 0];
-        slopeDetector = 0;
-        lastSample = '';
-        lastSlope = 1;
-        lastMaxTime = 0;
-        BMP = 0;
+        slopeDetector    = 0;
+        lastSample       = 0;
+        lastSlope        = 1;
+        lastMaxTime      = 0;
+        peakDetector     = 0;
+        peakThreshold    = 0;
+        peakTrigger      = 0;
+        lastPeakTime     = 0;
+        evalCounter      = 0;
+        evalWindow       = 200;
+        BPM              = 0;
     endproperties
 
     methods (Access=public)
@@ -88,13 +94,38 @@ classdef dataStreamClass < handle
             self.ar_index = 1;
           endif
 
+          # Peak-Detector
+          if (self.peakDetector)
+            # regelmaessig neu Threshold bestimmen
+            self.evalCounter = self.evalCounter + 1;
+            if (self.evalCounter > self.evalWindow)
+              evalArray = self.lastSamples(self.evalWindow);
+              if (max(evalArray) > 4*std(evalArray))
+                 self.peakThreshold = 0.5*max(evalArray);
+              endif
+              self.evalCounter = 0;
+            endif
+            # und Threshold vergleichen
+            if ((sample > self.peakThreshold) && !self.peakTrigger)
+              # Doppel-Peaks unterdruecken (50ms)
+              if (self.t_sum - self.lastPeakTime > 50)
+                self.BPM = round(60000 / (self.t_sum - self.lastPeakTime));
+                self.lastPeakTime = self.t_sum;
+                self.peakTrigger = 1;
+              endif
+            endif
+            if ((sample < self.peakThreshold) && self.peakTrigger)
+              self.peakTrigger = 0;
+            endif
+          endif
+
           # Slope-Detector
-          if ((self.slopeDetector) && isnumeric(self.lastSample))
+          if (self.slopeDetector)
             slope = sign(sample - self.lastSample);
             if (slope ~= self.lastSlope)
               if (slope < self.lastSlope) # Ubergang 1 >> -1 = Maximum
                 if (self.t_sum - self.lastMaxTime > 50)
-                 self.BMP = round(60000 / (self.t_sum - self.lastMaxTime));
+                 self.BPM = round(60000 / (self.t_sum - self.lastMaxTime));
                  self.lastMaxTime = self.t_sum;
                 endif
               endif
@@ -102,6 +133,7 @@ classdef dataStreamClass < handle
             self.lastSlope  = slope;
           endif
           self.lastSample = sample;
+
         endfunction
 
         function [ret_array, ret_time] = lastSamples(self,n)
@@ -118,10 +150,12 @@ classdef dataStreamClass < handle
         endfunction
 
         function clear(self)
-          self.ar_index = 1;
-          self.array = [];
-          self.t = [];
-          self.t_sum = 0;
+          self.ar_index     = 1;
+          self.array        = [];
+          self.t            = [];
+          self.t_sum        = 0;
+          self.lastMaxTime  = 0;
+          self.lastPeakTime = 0;
         endfunction
 
         function disp(self)

@@ -10,17 +10,18 @@ pkg load instrument-control;
 clear all;
 #  Konfiguration der dataStreams
 # obj = dataStreamClass(name,plcolor,dt,plotwidth,plot,filter)
-dataStream(1) = dataStreamClass("SIM","red",5,800,1,1);
+dataStream(1) = dataStreamClass("EKG","red",5,800,1,1);
 dataStream(1).length = 3000;
 # createFilter(f_abtast,f_HP,f_NO,f_TP)
 dataStream(1).createFilter(200,1,50,40);
-dataStream(1).slopeDetector = 1;
-
-dataStream(2) = dataStreamClass("SIG","blue",20,200,1,1);
-dataStream(2).length = 3000;
-# createFilter(f_abtast,f_HP,f_NO,f_TP)
-dataStream(2).createFilter(50,1,10,20);
-dataStream(2).slopeDetector = 1;
+dataStream(1).slopeDetector = 0;
+dataStream(1).peakDetector  = 1;
+dataStream(1).evalWindow = 500;
+##dataStream(2) = dataStreamClass("SIG","blue",20,200,1,1);
+##dataStream(2).length = 3000;
+### createFilter(f_abtast,f_HP,f_NO,f_TP)
+##dataStream(2).createFilter(50,1,10,20);
+##dataStream(2).slopeDetector = 1;
 
 # Globale Variablen zur Programmsteuerung
 global HP_filtered = 1 NO_filtered = 1 TP_filtered = 1 DQ_filtered = 0 DQ2_filtered = 0;
@@ -28,7 +29,7 @@ global quit_prg = 0 clear_data = 0 save_data = 0 rec_data = 1;
 
 baudrate = 115200;
 min_bytesAvailable = 10;
-min_datasetCounter_step   = 1;
+min_datasetCounter_step = 1;
 # Automatische Suche nach passendem seriellen Port
 disp('Seraching Serial Port ... ')
 serialPortPath = checkSerialPorts(baudrate)
@@ -226,14 +227,18 @@ if !isempty(serialPortPath)
               x_axis = [data_t(1) data_t(end)];
               if (ishandle(fi_1))
                 set(subPl(j),"xlim",x_axis);
-                legend(subPl(j),"location","northwestoutside","string",dataStream(i).BMP);
+                if (dataStream(i).slopeDetector || dataStream(i).peakDetector)
+                  legend(subPl(j),"location","northwestoutside","string",dataStream(i).BPM);
+                endif
               endif
             else                                              # Fenster scrollt nicht
               [adc_plot, data_t] = dataStream(i).lastSamples(dataStream(i).ar_index-1);
               x_axis = [0 dataStream(i).plotwidth*dataStream(i).dt];
               if (ishandle(fi_1))
                 set(subPl(j),"xlim",x_axis);
-                legend(subPl(j),"location","northwestoutside","string",dataStream(i).BMP);
+                if (dataStream(i).slopeDetector || dataStream(i).peakDetector)
+                  legend(subPl(j),"location","northwestoutside","string",dataStream(i).BPM);
+                endif
               endif
             endif
 
