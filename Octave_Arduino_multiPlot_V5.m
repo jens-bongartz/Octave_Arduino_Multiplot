@@ -4,45 +4,32 @@
 #  Die Daten können mit einer Kaskade von digitalen Filtern gefiltert werden.
 #
 #  (c) Jens Bongartz, Oktober 2023, RheinAhrCampus Remagen
-#  Stand: 12.11.2023
+#  Stand: 13.11.2023
 #  ==========================================================================
 #  Am 30.10.2023 Reihenfolge der digitalen Filter verändert
 #  ist: NO > TP > HP
 #  war: HP > NO > TP
 pkg load instrument-control;
 clear all;
-#
 #  Konfiguration der dataStreams
 # obj = dataStreamClass(name,plcolor,dt,plotwidth,plot,filter)
 dataStream(1) = dataStreamClass("SIM","red",5,800,1,1);
+# createFilter(f_abtast,f_HP,f_NO,f_TP)
+dataStream(1).createFilter(200,1,50,40);
 dataStream(2) = dataStreamClass("SIG","blue",20,200,1,1);
+# createFilter(f_abtast,f_HP,f_NO,f_TP)
+dataStream(2).createFilter(50,1,10,20);
 
 baudrate = 115200;
 min_bytesAvailable = 10;
 min_datasetCounter_step   = 1;
-peakDetect = 1;
-slopeDetect = 0;
-
-# Digitale Filter konfigurieren
-# =============================
-f_abtast = 200;
-f_HP = 1;
-f_TP = 40;
-f_NO = 50;
-# fuer Pulsmesser  f_HP = 20 + f_TP = 10;
 
 # Globale Variablen zur Programmsteuerung
 global HP_filtered = 1 NO_filtered = 1 TP_filtered = 1 DQ_filtered = 0 DQ2_filtered = 0;
 global quit_prg = 0 clear_data = 0 save_data = 0 rec_data = 1;
 
-HP_ko = calcHPCoeff(f_abtast,f_HP);
-NO_ko = calcNotchCoeff(f_abtast,f_NO);
-TP_ko = calcTPCoeff(f_abtast,f_TP);
-DQ_ko  = [1 -1 0 0 0];                   # (x[n]-x[n-1])/1
-DQ2_ko = [1 0 -1 0 0];                   # (x[n]-x[n-2])/(2) (1)
-
 # Automatische Suche nach passendem seriellen Port
-disp('Seraching serial Port ... ')
+disp('Seraching Serial Port ... ')
 serialPortPath = checkSerialPorts()
 
 # Der weitere Teil wird nur ausgefuehrt, wenn serielle Schnittstelle gefunden wurde
@@ -103,8 +90,6 @@ if !isempty(serialPortPath)
   displayInfo(fi_1)
 
   # Oeffnen serialPort
-  inBuffer = '';                    %% Buffer serielle Schnittstelle
-
   disp('Open SerialPort!')
   serial_01 = serialport(serialPortPath,baudrate);
   flush(serial_01);
@@ -112,9 +97,9 @@ if !isempty(serialPortPath)
   pause(2)
   drawnow();
   disp('Waiting for data!')
-
   # Sicherstellen, dass inBuffer nach einem CR/LF (Zeilenanfang) beginnt
   inSerialPort = '';
+  inBuffer = '';
   posLF = 0;
   do
      bytesAvailable = serial_01.NumBytesAvailable;
@@ -124,7 +109,7 @@ if !isempty(serialPortPath)
        posLF        = index(inSerialPort,char(10),"last");
      endif
   until (posLF > 0);
-  # erst ab dem letzten \r\n geht es los
+  # erst ab dem letzten \n geht es los
   inBuffer = inSerialPort(posLF+1:end);
 
   disp('Receiving data!')
@@ -197,7 +182,7 @@ if !isempty(serialPortPath)
          inBuffer = inBuffer(posLF+1:end);
 
          if (rec_data)   # Wird vom REC-Button gesteuert
-
+            # Regular Expression auswerten
             matches = regexp(inChar, regex_pattern, 'tokens');
 
             for i = 1:length(matches)
@@ -209,28 +194,7 @@ if !isempty(serialPortPath)
 
               datasetCounter++;
               datasetCounter_tic++;
-              if (dataStream(j).filter > 0)
-                 if (NO_filtered)
-                    [adc,dataStream(j).NO_sp] = digitalerFilter(adc,dataStream(j).NO_sp,NO_ko);
-                 endif
-                 if (TP_filtered)
-                    [adc,dataStream(j).TP_sp] = digitalerFilter(adc,dataStream(j).TP_sp,TP_ko);
-                 endif
-                 if (HP_filtered)
-                    [adc,dataStream(j).HP_sp] = digitalerFilter(adc,dataStream(j).HP_sp,HP_ko);
-                 endif
-                 if (DQ_filtered)
-                    [adc,dataStream(j).DQ_sp] = digitalerFilter(adc,dataStream(j).DQ_sp,DQ_ko);
-                 endif
-                 if (DQ2_filtered)
-                    [adc,dataStream(j).DQ2_sp] = digitalerFilter(adc,dataStream(j).DQ2_sp,DQ2_ko);
-                 endif
-              endif # dataStream(k).filter > 0
-
-              if (abs(adc) < 0.0001)                % 'dataaspectratio' Error verhindern
-                 adc = 0;
-              endif
-
+              # Filterung geschieht in addSample
               dataStream(j).addSample(adc,sample_t);
 
           endfor

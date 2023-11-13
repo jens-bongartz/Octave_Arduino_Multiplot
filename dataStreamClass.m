@@ -15,26 +15,65 @@ classdef dataStreamClass < handle
         length = 3000;
         ylim = 0;                 #yalternativ lim = [0 100];
         filter = 1;
-        HP_sp =  [0 0 0 0 0 0];    # Filter-Speicher
-        NO_sp =  [0 0 0 0 0 0];    # Filter-Speicher
-        TP_sp =  [0 0 0 0 0 0];    # Filter-Speicher
-        DQ_sp =  [0 0 0 0 0 0];    # Differenzenquotient
+        HP_sp  = [0 0 0 0 0 0];    # Filter-Speicher
+        NO_sp  = [0 0 0 0 0 0];    # Filter-Speicher
+        TP_sp  = [0 0 0 0 0 0];    # Filter-Speicher
+        DQ_sp  = [0 0 0 0 0 0];    # Differenzenquotient
         DQ2_sp = [0 0 0 0 0 0];   # Differenzenquotient
+        HP_ko  = [0 0 0 0 0];
+        NO_ko  = [0 0 0 0 0];
+        TP_ko  = [0 0 0 0 0];
+        DQ_ko  = [0 0 0 0 0];
+        DQ2_ko  = [0 0 0 0 0];
     endproperties
 
     methods (Access=public)
 
         function self = dataStreamClass(name,plcolor,dt,plotwidth,plot,filter)
-            self.name      = name;
-            self.plcolor   = plcolor;
-            self.dt        = dt;
-            self.plotwidth = plotwidth;
-            self.plot      = plot;
-            self.filter    = filter;
+          self.name      = name;
+          self.plcolor   = plcolor;
+          self.dt        = dt;
+          self.plotwidth = plotwidth;
+          self.plot      = plot;
+          self.filter    = filter;
+        endfunction
+
+        function createFilter(self,f_abtast,f_HP,f_NO,f_TP)
+          self.HP_ko = calcHPCoeff(f_abtast,f_HP);
+          self.NO_ko = calcNotchCoeff(f_abtast,f_NO);
+          self.TP_ko = calcTPCoeff(f_abtast,f_TP);
+          self.DQ_ko  = [1 -1 0 0 0];                   # (x[n]-x[n-1])/1
+          self.DQ2_ko = [1 0 -1 0 0];                   # (x[n]-x[n-2])/(2) (1)
         endfunction
 
         function addSample(self,sample,sample_t)
+          # Statusvariablen ob Filter gesetzt sind
+          global HP_filtered NO_filtered TP_filtered DQ_filtered DQ2_filtered;
+
+          if (self.filter > 0)
+            if (NO_filtered)
+              [sample,self.NO_sp] = digitalerFilter(sample,self.NO_sp,self.NO_ko);
+             endif
+             if (TP_filtered)
+               [sample,self.TP_sp] = digitalerFilter(sample,self.TP_sp,self.TP_ko);
+             endif
+             if (HP_filtered)
+               [sample,self.HP_sp] = digitalerFilter(sample,self.HP_sp,self.HP_ko);
+             endif
+             if (DQ_filtered)
+               [sample,self.DQ_sp] = digitalerFilter(sample,self.DQ_sp,self.DQ_ko);
+             endif
+             if (DQ2_filtered)
+               [sample,self.DQ2_sp] = digitalerFilter(sample,self.DQ2_sp,self.DQ2_ko);
+             endif
+          endif
+
+          if (abs(sample) < 0.0001)                % 'dataaspectratio' Error verhindern
+            sample = 0;
+          endif
+
           self.array(self.ar_index)=sample;
+
           self.t_sum = self.t_sum + sample_t;
           self.t(self.ar_index) = self.t_sum;
 
