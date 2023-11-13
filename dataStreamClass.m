@@ -61,6 +61,7 @@ classdef dataStreamClass < handle
           self.ar_index = 1;
           self.array = [];
           self.t = [];
+          self.t_sum = 0;
         endfunction
 
         function disp(self)

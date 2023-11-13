@@ -15,6 +15,8 @@ function portReturn = checkSerialPorts()
       fehler = true;
     end_try_catch
     if (fehler == false)
+##      pause(1)
+##      flush(serial_01);
       pause(2)
       bytesAvailable = serial_01.NumBytesAvailable;
       if (bytesAvailable > 0)
@@ -23,7 +25,7 @@ function portReturn = checkSerialPorts()
         lastCRLF     = index(inSerialPort, "\r\n","last");
         if (lastCRLF > firstCRLF)
           inChar   = inSerialPort(firstCRLF:lastCRLF);
-          values = strsplit(inChar, {':',',','\n','\r'});
+          values   = strsplit(inChar, {':',',','\n','\r'});
           data = unique(values);
           filtered_data = {};
           for i = 1:numel(data)

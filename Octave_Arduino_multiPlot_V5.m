@@ -12,9 +12,14 @@
 pkg load instrument-control;
 clear all;
 #
+#  Konfiguration der dataStreams
+# obj = dataStreamClass(name,plcolor,dt,plotwidth,plot,filter)
+dataStream(1) = dataStreamClass("SIM","red",5,800,1,1);
+dataStream(2) = dataStreamClass("SIG","blue",20,200,1,1);
+
 baudrate = 115200;
 min_bytesAvailable = 10;
-min_x_index_step   = 1;
+min_datasetCounter_step   = 1;
 peakDetect = 1;
 slopeDetect = 0;
 
@@ -37,16 +42,13 @@ DQ_ko  = [1 -1 0 0 0];                   # (x[n]-x[n-1])/1
 DQ2_ko = [1 0 -1 0 0];                   # (x[n]-x[n-2])/(2) (1)
 
 # Automatische Suche nach passendem seriellen Port
+disp('Seraching serial Port ... ')
 serialPortPath = checkSerialPorts()
 
 # Der weitere Teil wird nur ausgefuehrt, wenn serielle Schnittstelle gefunden wurde
 if !isempty(serialPortPath)
   disp('Device found:');
   disp(serialPortPath);
-  #  Konfiguration der dataStreams
-  # obj = dataStreamClass(name,plcolor,dt,plotwidth,plot,filter)
-  dataStream(1) = dataStreamClass("SIM","red",5,800,1,1);
-  dataStream(2) = dataStreamClass("SIG2","blue",20,200,1,1);
 
   # Liste aller dataStream Namen erstellen fuer Dictonary
   namelist = {};
@@ -102,46 +104,39 @@ if !isempty(serialPortPath)
 
   # Oeffnen serialPort
   inBuffer = '';                    %% Buffer serielle Schnittstelle
-  cr_lf = [char(13) char(10)];
 
-  if (!isempty(serialPortPath))
-    disp('Open SerialPort!')
-    serial_01 = serialport(serialPortPath,baudrate);
-    flush(serial_01);
-  endif
+  disp('Open SerialPort!')
+  serial_01 = serialport(serialPortPath,baudrate);
+  flush(serial_01);
 
   pause(2)
   drawnow();
   disp('Waiting for data!')
 
-  do
-  until (serial_01.NumBytesAvailable > 20);
-
-  disp('Bytes available!')
-
   # Sicherstellen, dass inBuffer nach einem CR/LF (Zeilenanfang) beginnt
   inSerialPort = '';
+  posLF = 0;
   do
      bytesAvailable = serial_01.NumBytesAvailable;
      if (bytesAvailable > 0)
        ## Daten werden vom SerialPort gelesen
        inSerialPort = [inSerialPort char(read(serial_01,bytesAvailable))];
-       posCRLF      = index(inSerialPort, cr_lf,"last");
+       posLF        = index(inSerialPort,char(10),"last");
      endif
-  until (posCRLF > 0);
+  until (posLF > 0);
+  # erst ab dem letzten \r\n geht es los
+  inBuffer = inSerialPort(posLF+1:end);
 
-  inBuffer = inSerialPort(posCRLF+2:end);
-
-  disp('Receiving data! Lines synced!')
+  disp('Receiving data!')
 
   # Variablen fuer die do ... until Schleife
   # =========================================
   Bench_Time = 2;              # Sekunden
-  x_index =  0;
-  x_index_prev = 0;
+  datasetCounter =  0;
+  datasetCounter_prev = 0;
 
   # Benchmarking
-  x_index_tic = 0;
+  datasetCounter_tic = 0;
   f_oct = t_toc = cpu_load = 1;
   bytesReceived = 0;
   bytesPerSecond = 0;
@@ -167,7 +162,7 @@ if !isempty(serialPortPath)
            set(subPl(j),"xlim",[0 dataStream(i).plotwidth*dataStream(i).dt]);
          endif
        endfor
-       x_index = 0; x_index_prev = 0;
+       datasetCounter = 0; datasetCounter_prev = 0;
        clear_data = 0;
        slopeMax = slopeMin = 1;
      endif
@@ -195,11 +190,11 @@ if !isempty(serialPortPath)
        inSerialPort = char(read(serial_01,bytesAvailable));
        ## und an den inBuffer angehängt
        inBuffer     = [inBuffer inSerialPort];
-       posCRLF      = index(inBuffer, cr_lf,"last");
-       if (posCRLF > 0)
+       posLF        = index(inBuffer,char(10),"last");
+       if (posLF > 0)
          % inBuffer wird zerlegt in inChar(vollstaendige Zeile(n)) + Rest = neuer inBuffer)
-         inChar   = inBuffer(1:posCRLF);         ## im folgenden wird  nur inChar ausgewertet
-         inBuffer = inBuffer(posCRLF+2:end);
+         inChar   = inBuffer(1:posLF);         ## im folgenden wird  nur inChar ausgewertet
+         inBuffer = inBuffer(posLF+1:end);
 
          if (rec_data)   # Wird vom REC-Button gesteuert
 
@@ -212,8 +207,8 @@ if !isempty(serialPortPath)
 
               j = streamSelector(streamName);
 
-              x_index++;
-              x_index_tic++;
+              datasetCounter++;
+              datasetCounter_tic++;
               if (dataStream(j).filter > 0)
                  if (NO_filtered)
                     [adc,dataStream(j).NO_sp] = digitalerFilter(adc,dataStream(j).NO_sp,NO_ko);
@@ -242,10 +237,10 @@ if !isempty(serialPortPath)
             # Benchmarking pro Datenzeile (alle Bench_Time Sekunden)
             if (toc > Bench_Time)
                t_toc = toc;
-               f_oct = round(1/(t_toc / x_index_tic));
+               f_oct = round(1/(t_toc / datasetCounter_tic));
                cpu_load = (cputime() - t_cpu);            % / t_toc *100
                t_cpu = cputime();
-               x_index_tic = 0;
+               datasetCounter_tic = 0;
                bytesPerSecond = round(bytesReceived / t_toc);
                bytesReceived = 0;
                tic
@@ -254,10 +249,7 @@ if !isempty(serialPortPath)
        endif # of posCRLF
      endif  # of bytesAvaiable
 
-     # Grafikausgaben werden nur durchgefuehrt, wenn x_index hochzaehlt (rec_data = TRUE)
-     # Vor der Grafikausgabe sollte geprueft werden, ob figure noch offen ist >> ishandle(fi_1)
-     # Warten mit dem Redraw bis ausreichend neue Werte gesampelt sind
-     if (x_index - x_index_prev) > min_x_index_step
+     if (datasetCounter - datasetCounter_prev) > min_datasetCounter_step
        j=0;  # iteriert ueber die subPlot-Instanzen
        for i = 1:length(dataStream);
          # wenn plot == 1 dann wird das array des dataStream geplottet >> adc_plot
@@ -278,7 +270,7 @@ if !isempty(serialPortPath)
               endif
             endif
 
-            x_index_prev = x_index;
+            datasetCounter_prev = datasetCounter;
             % Hier wird die Linie gezeichnet
             if (ishandle(fi_1))
               set(subLi(j),"xdata",data_t,"ydata",adc_plot);
@@ -287,14 +279,14 @@ if !isempty(serialPortPath)
          endif # (dataStream(i).plot==1)
        endfor
        if (ishandle(fi_1))   # Grafikausgabe nur wenn figure noch existiert
-         set(cap(1),"string",num2str(x_index));
+         set(cap(1),"string",num2str(datasetCounter));
          set(cap(2),"string",num2str(f_oct));
          set(cap(3),"string",num2str(t_toc));
          set(cap(4),"string",num2str(cpu_load));
          set(cap(5),"string",num2str(bytesPerSecond));
          set(cap(6),"string",num2str(outBPM));
        endif # ishandle(fi_1))
-     endif # x_index - x_index_prev) > 20
+     endif # datasetCounter - datasetCounter_prev) > 20
      # Entlastung der CPU / des OS
      #pause(0.05);    # 1/20 Sekunde
      pause(0.025);    # 1/40 Sekunde

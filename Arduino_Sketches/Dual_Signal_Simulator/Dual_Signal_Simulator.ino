@@ -8,7 +8,7 @@ int faADC2 = 50;
 
 int ampl1 = 100;
 int ampl2 = 10;
-int f1 = 20; 
+int f1 = 10; 
 int f2 = 5;
 
 const float pi = 3.14159;
@@ -21,9 +21,11 @@ long t_alt2 = 0;
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(115200);
-  Timer1.initialize(1000000/faADC2);             
-  Timer1.attachInterrupt(signal2);                                                       
-  Timer2.init(1000000/faADC, signal1);
+  
+  Timer1.initialize(1000000/faADC);             
+  Timer1.attachInterrupt(signal1);                                                       
+  
+  Timer2.init(1000000/faADC2, signal2);
   Timer2.start();                                                                    
 }
 
@@ -48,7 +50,7 @@ void signal2() {
   int simValue = s2;
   int dt = t - t_alt2;
   t_alt2 = t;
-  Serial.print("SIG2:");
+  Serial.print("SIG:");
   Serial.print(simValue);
   Serial.print(",t:");
   Serial.println(dt);
