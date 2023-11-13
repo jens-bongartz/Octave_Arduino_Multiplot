@@ -93,8 +93,10 @@ classdef dataStreamClass < handle
             slope = sign(sample - self.lastSample);
             if (slope ~= self.lastSlope)
               if (slope < self.lastSlope) # Ubergang 1 >> -1 = Maximum
+                if (self.t_sum - self.lastMaxTime > 50)
                  self.BMP = round(60000 / (self.t_sum - self.lastMaxTime));
                  self.lastMaxTime = self.t_sum;
+                endif
               endif
             endif
             self.lastSlope  = slope;
