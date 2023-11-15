@@ -1,10 +1,10 @@
 function cap = GUI_Elements(fi_1)
-  % ============
-  % GUI-Elemente
-  % ============
+  # ============
+  # GUI-Elemente
+  # ============
 
-  % "HP" Checkbox
-  % ===================
+  # "HP" Checkbox
+  # ===================
   global HP_filtered;
   cb_HP = uicontrol(fi_1,"style","checkbox","string","HP", ...
                       "callback",@cb_HP_changed,"position",[10,0,90,30], ...
@@ -14,7 +14,7 @@ function cap = GUI_Elements(fi_1)
     HP_filtered = not(HP_filtered);
   endfunction
 
-  % "Notch" Checkbox
+  # "Notch" Checkbox
   global NO_filtered;
   cb_NO = uicontrol(fi_1,"style","checkbox","string","NO", ...
                       "callback",@cb_NO_changed,"position",[60,0,90,30], ...
@@ -24,7 +24,7 @@ function cap = GUI_Elements(fi_1)
     NO_filtered = not(NO_filtered);
   endfunction
 
-  % "TP" Checkbox
+  # "TP" Checkbox
   global TP_filtered;
   cb_TP = uicontrol(fi_1,"style","checkbox","string","TP", ...
                     "callback",@cb_TP_changed,"position",[110,0,90,30], ...
@@ -52,7 +52,7 @@ function cap = GUI_Elements(fi_1)
     DQ2_filtered = not(DQ2_filtered);
   endfunction
 
-  % Clear-Button
+  # Clear-Button
   Clear_Button = uicontrol(fi_1,"style","pushbutton","string","Clear",...
                           "callback",@Clear_Button_pressed,"position",[310,0,50,30]);
 
@@ -60,7 +60,7 @@ function cap = GUI_Elements(fi_1)
      global clear_data;
      clear_data = 1;
   endfunction
-  % Save-Button
+  # Save-Button
   Save_Button = uicontrol(fi_1,"style","pushbutton","string","Save",...
                           "callback",@Save_Button_pressed,"position",[370,0,50,30]);
 
@@ -68,7 +68,7 @@ function cap = GUI_Elements(fi_1)
     global save_data;
     save_data = 1;
   endfunction
-  % Rec-Button
+  # Rec-Button
   Rec_Button = uicontrol(fi_1,"style","pushbutton","string","Rec",...
                           "callback",@Rec_Button_pressed,"position",[430,0,50,30]);
 
@@ -77,14 +77,14 @@ function cap = GUI_Elements(fi_1)
     rec_data = not(rec_data);
   endfunction
 
-  % Wenn das figure-Fenster geschlossen wird, soll auch das Programm beendet werden
+  # Wenn das figure-Fenster geschlossen wird, soll auch das Programm beendet werden
   set(fi_1,"closerequestfcn",@onclosefigure);
   function onclosefigure(h,e)
     global quit_prg;
     quit_prg = 1;
     delete(fi_1)
   endfunction
-  % ========================
+  # ========================
   cap(1) = uicontrol(fi_1,"style","text","string","Index","position",[490,0,50,30]);
   cap(2) = uicontrol(fi_1,"style","text","string","f_a","position",[550,0,50,30]);
   cap(3) = uicontrol(fi_1,"style","text","string","tic","position",[610,0,50,30]);

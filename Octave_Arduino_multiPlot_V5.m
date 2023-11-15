@@ -29,9 +29,9 @@ global quit_prg = 0 clear_data = 0 save_data = 0 rec_data = 1;
 
 baudrate = 115200;
 min_bytesAvailable = 10;
-min_datasetCounter_step = 1;
+min_datasetCounter_step = 20;
 # Automatische Suche nach passendem seriellen Port
-disp('Seraching Serial Port ... ')
+disp('Searching Serial Port ... ')
 serialPortPath = checkSerialPorts(baudrate)
 
 # Der weitere Teil wird nur ausgefuehrt, wenn serielle Schnittstelle gefunden wurde
@@ -118,12 +118,9 @@ if !isempty(serialPortPath)
 
   # Benchmarking
   Bench_Time = 2;              # Sekunden
-  datasetCounter =  0;
-  datasetCounter_prev = 0;
-  datasetCounter_tic = 0;
-  f_oct = t_toc = cpu_load = 1;
-  bytesReceived = 0;
-  bytesPerSecond = 0;
+  datasetCounter =  0; datasetCounter_prev = 0; datasetCounter_tic = 0;
+  f_oct = 0; t_toc = 0; cpu_load = 1; bytesReceived = 0; bytesPerSecond = 0;
+
   tic
   t_cpu = cputime;
 
@@ -178,28 +175,29 @@ if !isempty(serialPortPath)
             countMatches   = length(matches);       # Wert wird ausgegeben
 
             datasetCounter = datasetCounter + countMatches;
-            dataSetCounter_tic = datasetCounter_tic + countMatches;
+            datasetCounter_tic = datasetCounter_tic + countMatches;
 
+            # Matches den dataStreams zuordnen
             for i = 1:countMatches
               streamName = matches{i}{1};
               adc        = str2num(matches{i}{2});
               sample_t   = str2num(matches{i}{3});
 
               j = streamSelector(streamName);
+              # Hier uebernimmt dataStream die Arbeit
               dataStream(j).addSample(adc,sample_t);
-
             endfor
 
             # Benchmarking pro Datenzeile (alle Bench_Time Sekunden)
             if (toc > Bench_Time)
                t_toc = toc;
-               f_oct = round(1/(t_toc / datasetCounter_tic));
-               cpu_load = (cputime() - t_cpu);            % / t_toc *100
+               f_oct = (datasetCounter_tic/t_toc);
+               cpu_load = (cputime() - t_cpu);
                t_cpu = cputime();
                datasetCounter_tic = 0;
                bytesPerSecond = round(bytesReceived / t_toc);
                bytesReceived = 0;
-               tic
+               tic                   # neue Zeitschleife
             endif
          endif # (rec_data)
        endif # of posCRLF
@@ -223,8 +221,8 @@ if !isempty(serialPortPath)
               set(subPl(j),"xlim",x_axis);
               set(subLi(j),"xdata",data_t,"ydata",adc_plot);
               if (dataStream(i).slopeDetector || dataStream(i).peakDetector)
-                #legend(subPl(j),"location","northwestoutside","string",num2str(dataStream(i).BPM));
-                set(subPl(j),"title",num2str(dataStream(i).BPM),"fontsize",20);
+                titleText = strcat("BPM:",num2str(dataStream(i).BPM));
+                set(subPl(j),"title",titleText,"fontsize",20);
               endif
             endif
          endif # (dataStream(i).plot==1)
