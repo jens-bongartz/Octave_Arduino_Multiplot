@@ -4,24 +4,24 @@
 #  Die Daten können mit einer Kaskade von digitalen Filtern gefiltert werden.
 #
 #  (c) Jens Bongartz, Oktober 2023, RheinAhrCampus Remagen
-#  Stand: 13.11.2023
+#  Stand: 15.11.2023
 #  ==========================================================================
 pkg load instrument-control;
 clear all;
 #  Konfiguration der dataStreams
 # obj = dataStreamClass(name,plcolor,dt,plotwidth,plot,filter)
-dataStream(1) = dataStreamClass("EKG","red",5,800,1,1);
-#dataStream(1).length = 3000;
+dataStream(1) = dataStreamClass("SIM","red",5,800,1,1);
 # createFilter(f_abtast,f_HP,f_NO,f_TP)
 dataStream(1).createFilter(200,1,50,40);
-#dataStream(1).slopeDetector = 1;
-dataStream(1).peakDetector  = 1;
-dataStream(1).evalWindow = 500;
-##dataStream(2) = dataStreamClass("SIG","blue",20,200,1,1);
-##dataStream(2).length = 3000;
-### createFilter(f_abtast,f_HP,f_NO,f_TP)
-##dataStream(2).createFilter(50,1,10,20);
-##dataStream(2).slopeDetector = 1;
+dataStream(1).slopeDetector = 1;
+##dataStream(1).peakDetector  = 1;
+##dataStream(1).evalWindow = 500;           # alle 2,5 sec Threshold neu bestimmen
+
+dataStream(2) = dataStreamClass("SIG","blue",20,200,1,1);
+#dataStream(2).length = 3000;
+# createFilter(f_abtast,f_HP,f_NO,f_TP)
+dataStream(2).createFilter(50,1,10,20);
+dataStream(2).slopeDetector = 1;
 
 # Globale Variablen zur Programmsteuerung
 global HP_filtered = 1 NO_filtered = 1 TP_filtered = 1 DQ_filtered = 0 DQ2_filtered = 0;
@@ -175,20 +175,21 @@ if !isempty(serialPortPath)
          if (rec_data)   # Wird vom REC-Button gesteuert
             # Regular Expression auswerten
             matches = regexp(inChar, regex_pattern, 'tokens');
-            countMatches = length(matches);       # Wert wird ausgegeben
+            countMatches   = length(matches);       # Wert wird ausgegeben
+
+            datasetCounter = datasetCounter + countMatches;
+            dataSetCounter_tic = datasetCounter_tic + countMatches;
+
             for i = 1:countMatches
               streamName = matches{i}{1};
               adc        = str2num(matches{i}{2});
               sample_t   = str2num(matches{i}{3});
 
               j = streamSelector(streamName);
-
-              datasetCounter++;
-              datasetCounter_tic++;
-              # Filterung geschieht in addSample
               dataStream(j).addSample(adc,sample_t);
 
             endfor
+
             # Benchmarking pro Datenzeile (alle Bench_Time Sekunden)
             if (toc > Bench_Time)
                t_toc = toc;
@@ -210,32 +211,22 @@ if !isempty(serialPortPath)
          # wenn plot == 1 dann wird das array des dataStream geplottet >> adc_plot
          if (dataStream(i).plot == 1)
             j=j+1;
-            if (length(dataStream(i).array) > dataStream(i).plotwidth)                      # Fenster scrollt
+            if (length(dataStream(i).array) > dataStream(i).plotwidth) # Fenster scrollt
               [adc_plot, data_t] = dataStream(i).lastSamples(dataStream(i).plotwidth);
               x_axis = [data_t(1) data_t(end)];
-              if (ishandle(fi_1))
-                set(subPl(j),"xlim",x_axis);
-                if (dataStream(i).slopeDetector || dataStream(i).peakDetector)
-                  legend(subPl(j),"location","northwestoutside","string",dataStream(i).BPM);
-                endif
-              endif
-            else                                              # Fenster scrollt nicht
+            else                                                       # Fenster scrollt nicht
               [adc_plot, data_t] = dataStream(i).lastSamples(dataStream(i).ar_index-1);
               x_axis = [0 dataStream(i).plotwidth*dataStream(i).dt];
-              if (ishandle(fi_1))
-                set(subPl(j),"xlim",x_axis);
-                if (dataStream(i).slopeDetector || dataStream(i).peakDetector)
-                  legend(subPl(j),"location","northwestoutside","string",dataStream(i).BPM);
-                endif
-              endif
             endif
 
-            datasetCounter_prev = datasetCounter;
-            % Hier wird die Linie gezeichnet
             if (ishandle(fi_1))
+              set(subPl(j),"xlim",x_axis);
               set(subLi(j),"xdata",data_t,"ydata",adc_plot);
+              if (dataStream(i).slopeDetector || dataStream(i).peakDetector)
+                #legend(subPl(j),"location","northwestoutside","string",num2str(dataStream(i).BPM));
+                set(subPl(j),"title",num2str(dataStream(i).BPM),"fontsize",20);
+              endif
             endif
-            drawnow();
          endif # (dataStream(i).plot==1)
        endfor
        if (ishandle(fi_1))   # Grafikausgabe nur wenn figure noch existiert
@@ -246,6 +237,8 @@ if !isempty(serialPortPath)
          set(cap(5),"string",num2str(bytesPerSecond));
          set(cap(6),"string",num2str(countMatches));
        endif # ishandle(fi_1))
+       drawnow();
+       datasetCounter_prev = datasetCounter;
      endif # datasetCounter - datasetCounter_prev) > 20
      # Entlastung der CPU / des OS
      #pause(0.05);    # 1/20 Sekunde
