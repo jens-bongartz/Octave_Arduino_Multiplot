@@ -11,10 +11,10 @@ clear all;
 #  Konfiguration der dataStreams
 # obj = dataStreamClass(name,plcolor,dt,plotwidth,plot,filter)
 dataStream(1) = dataStreamClass("EKG","red",5,800,1,1);
-dataStream(1).length = 3000;
+#dataStream(1).length = 3000;
 # createFilter(f_abtast,f_HP,f_NO,f_TP)
 dataStream(1).createFilter(200,1,50,40);
-dataStream(1).slopeDetector = 0;
+#dataStream(1).slopeDetector = 1;
 dataStream(1).peakDetector  = 1;
 dataStream(1).evalWindow = 500;
 ##dataStream(2) = dataStreamClass("SIG","blue",20,200,1,1);
@@ -116,28 +116,17 @@ if !isempty(serialPortPath)
 
   disp('Receiving data!')
 
-  # Variablen fuer die do ... until Schleife
-  # =========================================
+  # Benchmarking
   Bench_Time = 2;              # Sekunden
   datasetCounter =  0;
   datasetCounter_prev = 0;
-
-  # Benchmarking
   datasetCounter_tic = 0;
   f_oct = t_toc = cpu_load = 1;
   bytesReceived = 0;
   bytesPerSecond = 0;
   tic
   t_cpu = cputime;
-  # Peak Detection >>
-  peakThreshold = 100;
-  peakTrigger = 0;
-  peakOld = 0;
-  outBPM = 0;
-  # Slope Detection
-  slopeAct = 1;
-  slopeOld = -1;
-  slopeMax = slopeMin = 1;
+
   do
      ## Wenn der Clear-Button gedrueckt wurde
      if (clear_data)
@@ -151,7 +140,6 @@ if !isempty(serialPortPath)
        endfor
        datasetCounter = 0; datasetCounter_prev = 0;
        clear_data = 0;
-       slopeMax = slopeMin = 1;
      endif
 
      ## Wenn der Save-Button gedrueckt wurde
@@ -187,8 +175,8 @@ if !isempty(serialPortPath)
          if (rec_data)   # Wird vom REC-Button gesteuert
             # Regular Expression auswerten
             matches = regexp(inChar, regex_pattern, 'tokens');
-
-            for i = 1:length(matches)
+            countMatches = length(matches);       # Wert wird ausgegeben
+            for i = 1:countMatches
               streamName = matches{i}{1};
               adc        = str2num(matches{i}{2});
               sample_t   = str2num(matches{i}{3});
@@ -256,7 +244,7 @@ if !isempty(serialPortPath)
          set(cap(3),"string",num2str(t_toc));
          set(cap(4),"string",num2str(cpu_load));
          set(cap(5),"string",num2str(bytesPerSecond));
-##         set(cap(6),"string",num2str(outBPM));
+         set(cap(6),"string",num2str(countMatches));
        endif # ishandle(fi_1))
      endif # datasetCounter - datasetCounter_prev) > 20
      # Entlastung der CPU / des OS
