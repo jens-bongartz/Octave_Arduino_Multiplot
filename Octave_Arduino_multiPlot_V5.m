@@ -27,8 +27,8 @@ dataStream(2).slopeDetector = 1;
 global HP_filtered = 1 NO_filtered = 1 TP_filtered = 1 DQ_filtered = 0 DQ2_filtered = 0;
 global quit_prg = 0 clear_data = 0 save_data = 0 rec_data = 1;
 
-baudrate = 115200;
-min_bytesAvailable = 10;
+baudrate                = 115200;
+min_bytesAvailable      = 10;
 min_datasetCounter_step = 20;
 # Automatische Suche nach passendem seriellen Port
 disp('Searching Serial Port ... ')
@@ -191,7 +191,7 @@ if !isempty(serialPortPath)
             # Benchmarking pro Datenzeile (alle Bench_Time Sekunden)
             if (toc > Bench_Time)
                t_toc = toc;
-               f_oct = (datasetCounter_tic/t_toc);
+               f_oct = round(datasetCounter_tic/t_toc);
                cpu_load = (cputime() - t_cpu);
                t_cpu = cputime();
                datasetCounter_tic = 0;
@@ -209,13 +209,13 @@ if !isempty(serialPortPath)
          # wenn plot == 1 dann wird das array des dataStream geplottet >> adc_plot
          if (dataStream(i).plot == 1)
             j=j+1;
-            if (length(dataStream(i).array) > dataStream(i).plotwidth) # Fenster scrollt
+##            if (length(dataStream(i).array) > dataStream(i).plotwidth) # Fenster scrollt
               [adc_plot, data_t] = dataStream(i).lastSamples(dataStream(i).plotwidth);
               x_axis = [data_t(1) data_t(end)];
-            else                                                       # Fenster scrollt nicht
-              [adc_plot, data_t] = dataStream(i).lastSamples(dataStream(i).ar_index-1);
-              x_axis = [0 dataStream(i).plotwidth*dataStream(i).dt];
-            endif
+##            else                                                       # Fenster scrollt nicht
+##              [adc_plot, data_t] = dataStream(i).lastSamples(dataStream(i).ar_index-1);
+##              x_axis = [0 dataStream(i).plotwidth*dataStream(i).dt];
+##            endif
 
             if (ishandle(fi_1))
               set(subPl(j),"xlim",x_axis);

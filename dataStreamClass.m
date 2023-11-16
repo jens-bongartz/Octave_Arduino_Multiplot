@@ -2,18 +2,18 @@
 classdef dataStreamClass < handle
 
     properties
-        name = "";
-        array = [];              # in array[] stehen alle Messdaten seit CLEAR
-        ar_index = 1;
-        length = 3000;
-        t = [];
-        dt    = 5;
-        t_sum = 0;
+        name      = "";
+        array     = [];              # in array[] stehen alle Messdaten seit CLEAR
+        ar_index  = 1;
+        length    = 3000;
+        t         = [];
+        dt        = 5;
+        t_sum     = 0;
         plotwidth = 800;
-        plot = 1;
-        plcolor = "";
-        ylim = 0;                 #yalternativ lim = [0 100];
-        filter = 1;
+        plot      = 1;
+        plcolor   = "";
+        ylim      = 0;                 #yalternativ lim = [0 100];
+        filter    = 1;
         HP_sp  = [0 0 0 0 0 0];    # Filter-Speicher
         NO_sp  = [0 0 0 0 0 0];    # Filter-Speicher
         TP_sp  = [0 0 0 0 0 0];    # Filter-Speicher
@@ -24,17 +24,17 @@ classdef dataStreamClass < handle
         TP_ko  = [0 0 0 0 0];
         DQ_ko  = [0 0 0 0 0];
         DQ2_ko  = [0 0 0 0 0];
-        slopeDetector    = 0;
-        lastSample       = 0;
-        lastSlope        = 1;
-        lastMaxTime      = 0;
-        peakDetector     = 0;
-        peakThreshold    = 0;
-        peakTrigger      = 0;
-        lastPeakTime     = 0;
-        evalCounter      = 0;
-        evalWindow       = 200;
-        BPM              = 0;
+        slopeDetector = 0;
+        lastSample    = 0;
+        lastSlope     = 1;
+        lastMaxTime   = 0;
+        peakDetector  = 0;
+        peakThreshold = 0;
+        peakTrigger   = 0;
+        lastPeakTime  = 0;
+        evalCounter   = 0;
+        evalWindow    = 200;
+        BPM           = 0;
     endproperties
 
     methods (Access=public)
@@ -46,6 +46,13 @@ classdef dataStreamClass < handle
           self.plotwidth = plotwidth;
           self.plot      = plot;
           self.filter    = filter;
+          self.initRingBuffer();
+        endfunction
+
+        function initRingBuffer(self)
+          self.array    = zeros(1,self.length);
+          self.t        = zeros(1,self.length);
+          self.ar_index = self.plotwidth;
         endfunction
 
         function createFilter(self,f_abtast,f_HP,f_NO,f_TP)
@@ -175,11 +182,12 @@ classdef dataStreamClass < handle
 
         function clear(self)
           self.ar_index     = 1;
-          self.array        = [];
-          self.t            = [];
+##          self.array        = [];
+##          self.t            = [];
           self.t_sum        = 0;
           self.lastMaxTime  = 0;
           self.lastPeakTime = 0;
+          self.initRingBuffer();
         endfunction
 
         function disp(self)
