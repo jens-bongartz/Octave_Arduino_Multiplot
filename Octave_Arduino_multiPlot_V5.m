@@ -119,10 +119,11 @@ if !isempty(serialPortPath)
   # Benchmarking
   Bench_Time = 2;              # Sekunden
   datasetCounter =  0; datasetCounter_prev = 0; datasetCounter_tic = 0;
-  f_oct = 0; t_toc = 0; cpu_load = 1; bytesReceived = 0; bytesPerSecond = 0;
-
+  f_oct = 0; t_toc = 0; user_load = 0; bytesReceived = 0; bytesPerSecond = 0;
+  sys_load = 0;
+  
   tic
-  t_cpu = cputime;
+ [t_cpu_prev,t_user_prev,t_sys_prev] = cputime();
 
   do
      ## Wenn der Clear-Button gedrueckt wurde
@@ -191,9 +192,11 @@ if !isempty(serialPortPath)
             # Benchmarking pro Datenzeile (alle Bench_Time Sekunden)
             if (toc > Bench_Time)
                t_toc = toc;
-               f_oct = round(datasetCounter_tic/t_toc);
-               cpu_load = (cputime() - t_cpu);
-               t_cpu = cputime();
+               f_oct = round(datasetCounter_tic/t_toc);               
+               [t_cpu,t_user,t_sys] = cputime();
+               user_load = t_user - t_user_prev;
+               sys_load = t_sys - t_sys_prev; 
+               t_cpu_prev = t_cpu; t_user_prev = t_user; t_sys_prev = t_sys;
                datasetCounter_tic = 0;
                bytesPerSecond = round(bytesReceived / t_toc);
                bytesReceived = 0;
@@ -231,7 +234,8 @@ if !isempty(serialPortPath)
          set(cap(1),"string",num2str(datasetCounter));
          set(cap(2),"string",num2str(f_oct));
          set(cap(3),"string",num2str(t_toc));
-         set(cap(4),"string",num2str(cpu_load));
+         set(cap(4),"string",num2str(user_load));       # untere Wert
+         set(cap(7),"string",num2str(sys_load));        # obere Wert
          set(cap(5),"string",num2str(bytesPerSecond));
          set(cap(6),"string",num2str(countMatches));
        endif # ishandle(fi_1))

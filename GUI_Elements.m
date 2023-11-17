@@ -89,6 +89,7 @@ function cap = GUI_Elements(fi_1)
   cap(2) = uicontrol(fi_1,"style","text","string","f_a","position",[550,0,50,30]);
   cap(3) = uicontrol(fi_1,"style","text","string","tic","position",[610,0,50,30]);
   cap(4) = uicontrol(fi_1,"style","text","string","cpu","position",[670,0,50,30]);
+  cap(7) = uicontrol(fi_1,"style","text","string","cpu","position",[670,30,50,30]);
   cap(5) = uicontrol(fi_1,"style","text","string","cpu","position",[730,0,50,30]);
   cap(6) = uicontrol(fi_1,"style","text","string","BPM","position",[790,0,50,30]);
 endfunction
