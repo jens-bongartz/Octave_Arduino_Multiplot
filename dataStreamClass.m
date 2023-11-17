@@ -182,8 +182,6 @@ classdef dataStreamClass < handle
 
         function clear(self)
           self.ar_index     = 1;
-##          self.array        = [];
-##          self.t            = [];
           self.t_sum        = 0;
           self.lastMaxTime  = 0;
           self.lastPeakTime = 0;

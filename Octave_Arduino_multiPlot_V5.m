@@ -8,7 +8,6 @@
 #  ==========================================================================
 pkg load instrument-control;
 clear all;
-#  Konfiguration der dataStreams
 # obj = dataStreamClass(name,plcolor,dt,plotwidth,plot,filter)
 dataStream(1) = dataStreamClass("SIM","red",5,800,1,1);
 # createFilter(f_abtast,f_HP,f_NO,f_TP)
@@ -19,7 +18,6 @@ dataStream(1).slopeDetector = 1;
 
 dataStream(2) = dataStreamClass("SIG","blue",20,200,1,1);
 #dataStream(2).length = 3000;
-# createFilter(f_abtast,f_HP,f_NO,f_TP)
 dataStream(2).createFilter(50,1,10,20);
 dataStream(2).slopeDetector = 1;
 
@@ -61,35 +59,10 @@ if !isempty(serialPortPath)
   # Initialisiere Plot-Fenster
   # ==========================
   graphics_toolkit("qt");
-  fi_1 = figure(1);
-  clf
-  # Bestimmung wieviele Plots gezeichnet werden >> fuer subplot()
-  spN = 0;
-  for i = 1:length(dataStream);
-    if (dataStream(i).plot == 1)
-      spN = spN + 1;
-    endif
-  endfor
-
-  j=0;
-  for i = 1:length(dataStream)
-    if (dataStream(i).plot == 1)
-      j=j+1;
-      ## The function subplot returns a handle pointing to an object of type axes.
-      subPl(j) = subplot(spN,1,j);
-      set(subPl(j),"box","on","title",dataStream(i).name,"xlim",[0 dataStream(i).plotwidth*dataStream(i).dt]);
-      # wenn ylim Grenzen nutzt
-      if (sum(dataStream(j).ylim != 0))
-        set(subPl(j),"ylim",dataStream(i).ylim);
-      endif
-      # Zeichenfarbe setzen
-      subLi(j) = line("linewidth",2,"color",dataStream(i).plcolor);
-    endif
-  endfor
-
-  # externe Funktionen
-  cap = GUI_Elements(fi_1);       % cap ist ein Array von captions!
-  displayInfo(fi_1)
+  # Graphikfenster initialisieren
+  plotGraph = plotGraphClass(dataStream);
+  cap = GUI_Elements(plotGraph.fi_1);       % cap ist ein Array von captions!
+  displayInfo(plotGraph.fi_1);
 
   # Oeffnen serialPort
   disp('Open SerialPort!')
@@ -100,9 +73,7 @@ if !isempty(serialPortPath)
   drawnow();
   disp('Waiting for data!')
   # Sicherstellen, dass inBuffer nach einem CR/LF (Zeilenanfang) beginnt
-  inSerialPort = '';
-  inBuffer = '';
-  posLF = 0;
+  inSerialPort = ''; inBuffer = ''; posLF = 0;
   do
      bytesAvailable = serial_01.NumBytesAvailable;
      if (bytesAvailable > 0)
@@ -115,16 +86,12 @@ if !isempty(serialPortPath)
   inBuffer = inSerialPort(posLF+1:end);
 
   disp('Receiving data!')
-
   # Benchmarking
   Bench_Time = 2;              # Sekunden
   datasetCounter =  0; datasetCounter_prev = 0; datasetCounter_tic = 0;
-  f_oct = 0; t_toc = 0; user_load = 0; bytesReceived = 0; bytesPerSecond = 0;
-  sys_load = 0;
-  
+  f_oct = 0; t_toc = 0; user_load = 0; bytesReceived = 0; bytesPerSecond = 0; sys_load = 0;
   tic
- [t_cpu_prev,t_user_prev,t_sys_prev] = cputime();
-
+  [t_cpu_prev,t_user_prev,t_sys_prev] = cputime();
   do
      ## Wenn der Clear-Button gedrueckt wurde
      if (clear_data)
@@ -133,7 +100,7 @@ if !isempty(serialPortPath)
          dataStream(i).clear;
          if (dataStream(i).plot > 0)
            j = j + 1;
-           set(subPl(j),"xlim",[0 dataStream(i).plotwidth*dataStream(i).dt]);
+           set(plotGraph.subPl(j),"xlim",[0 dataStream(i).plotwidth*dataStream(i).dt]);
          endif
        endfor
        datasetCounter = 0; datasetCounter_prev = 0;
@@ -192,10 +159,10 @@ if !isempty(serialPortPath)
             # Benchmarking pro Datenzeile (alle Bench_Time Sekunden)
             if (toc > Bench_Time)
                t_toc = toc;
-               f_oct = round(datasetCounter_tic/t_toc);               
+               f_oct = round(datasetCounter_tic/t_toc);
                [t_cpu,t_user,t_sys] = cputime();
                user_load = t_user - t_user_prev;
-               sys_load = t_sys - t_sys_prev; 
+               sys_load = t_sys - t_sys_prev;
                t_cpu_prev = t_cpu; t_user_prev = t_user; t_sys_prev = t_sys;
                datasetCounter_tic = 0;
                bytesPerSecond = round(bytesReceived / t_toc);
@@ -207,40 +174,22 @@ if !isempty(serialPortPath)
      endif  # of bytesAvaiable
 
      if (datasetCounter - datasetCounter_prev) > min_datasetCounter_step
-       j=0;  # iteriert ueber die subPlot-Instanzen
-       for i = 1:length(dataStream);
-         # wenn plot == 1 dann wird das array des dataStream geplottet >> adc_plot
-         if (dataStream(i).plot == 1)
-            j=j+1;
-##            if (length(dataStream(i).array) > dataStream(i).plotwidth) # Fenster scrollt
-              [adc_plot, data_t] = dataStream(i).lastSamples(dataStream(i).plotwidth);
-              x_axis = [data_t(1) data_t(end)];
-##            else                                                       # Fenster scrollt nicht
-##              [adc_plot, data_t] = dataStream(i).lastSamples(dataStream(i).ar_index-1);
-##              x_axis = [0 dataStream(i).plotwidth*dataStream(i).dt];
-##            endif
 
-            if (ishandle(fi_1))
-              set(subPl(j),"xlim",x_axis);
-              set(subLi(j),"xdata",data_t,"ydata",adc_plot);
-              if (dataStream(i).slopeDetector || dataStream(i).peakDetector)
-                titleText = strcat("BPM:",num2str(dataStream(i).BPM));
-                set(subPl(j),"title",titleText,"fontsize",20);
-              endif
-            endif
-         endif # (dataStream(i).plot==1)
-       endfor
-       if (ishandle(fi_1))   # Grafikausgabe nur wenn figure noch existiert
+       plotGraph.draw(dataStream);
+
+       if (ishandle(plotGraph.fi_1))   # Grafikausgabe nur wenn figure noch existiert
          set(cap(1),"string",num2str(datasetCounter));
          set(cap(2),"string",num2str(f_oct));
          set(cap(3),"string",num2str(t_toc));
          set(cap(4),"string",num2str(user_load));       # untere Wert
-         set(cap(7),"string",num2str(sys_load));        # obere Wert
+         #set(cap(7),"string",num2str(sys_load));        # obere Wert
          set(cap(5),"string",num2str(bytesPerSecond));
          set(cap(6),"string",num2str(countMatches));
        endif # ishandle(fi_1))
+
        drawnow();
        datasetCounter_prev = datasetCounter;
+
      endif # datasetCounter - datasetCounter_prev) > 20
      # Entlastung der CPU / des OS
      #pause(0.05);    # 1/20 Sekunde
