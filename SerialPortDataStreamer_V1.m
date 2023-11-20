@@ -176,8 +176,6 @@ if !isempty(serialPortPath)
        [t_cpu,t_user,t_sys] = cputime();
        user_load = t_user - t_user_prev; sys_load = t_sys - t_sys_prev;
        t_cpu_prev = t_cpu; t_user_prev = t_user; t_sys_prev = t_sys;
-
-       bench_tic=tic();                   # neue Zeitschleife
        if (ishandle(plotGraph.fi_1))   # Grafikausgabe nur wenn figure noch existiert
          #set(cap(1),"string",num2str(datasetCounter));
          set(cap(2),"string",num2str(f_oct));
@@ -187,6 +185,7 @@ if !isempty(serialPortPath)
          set(cap(5),"string",num2str(bytesPerSecond));
          set(cap(6),"string",num2str(countMatches));
        endif # ishandle(fi_1))
+       bench_tic=tic();                   # neue Zeitschleife
      endif # b_toc
 
   until(quit_prg);    %% Programmende mit Quit-Button
