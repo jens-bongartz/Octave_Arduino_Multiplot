@@ -12,13 +12,18 @@ clear all;
 ##dataStream(1).peakDetector  = 1;
 ##dataStream(1).evalWindow = 500;           # alle 2,5 sec Threshold neu bestimmen
 
-dataStream(1) = dataStreamClass("SIM","red",5,800,1,1);
+dataStream(1) = dataStreamClass("EKG","red",5,800,1,1);
 dataStream(1).createFilter(200,1,50,40);
-dataStream(1).slopeDetector = 1;
+dataStream(1).peakDetector  = 1;
+dataStream(1).evalWindow    = 200;           # alle 1 sec Threshold neu bestimmen
 
-dataStream(2) = dataStreamClass("SIG","blue",20,200,1,1);
-dataStream(2).createFilter(50,1,10,20);
-dataStream(2).slopeDetector = 1;
+##dataStream(1) = dataStreamClass("SIM","red",5,800,1,1);
+##dataStream(1).createFilter(200,1,50,40);
+##dataStream(1).slopeDetector = 1;
+##
+##dataStream(2) = dataStreamClass("SIG","blue",20,200,1,1);
+##dataStream(2).createFilter(50,1,10,20);
+##dataStream(2).slopeDetector = 1;
 
 streamSelector = createDictionary(dataStream);
 regex_pattern = createRegEx(dataStream);

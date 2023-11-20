@@ -34,6 +34,8 @@ classdef dataStreamClass < handle
         lastPeakTime  = 0;
         evalCounter   = 0;
         evalWindow    = 200;
+        #EvalThresTime = 1;
+        #eval_tic      = 0;
         BPM           = 0;
     endproperties
 
@@ -47,6 +49,9 @@ classdef dataStreamClass < handle
           self.plot      = plot;
           self.filter    = filter;
           self.initRingBuffer();
+##          if (self.peakDetector)
+##            self.eval_tic = tic();
+##          endif
         endfunction
 
         function initRingBuffer(self)
@@ -89,8 +94,11 @@ classdef dataStreamClass < handle
 
             self.evalCounter = self.evalCounter + 1;
             # regelmaessig neu Threshold bestimmen
+            #e_toc = toc(self.eval_tic);
             if (self.evalCounter > self.evalWindow)
+            #if (e_toc > self.EvalThresTime)
               self.evalThreshold;
+              #self.eval_tic = tic();
             endif
 
             self.peakDetectorFunction(sample);
@@ -163,6 +171,7 @@ classdef dataStreamClass < handle
              self.peakThreshold = 0.5*max(evalArray);
           endif
           self.evalCounter = 0;
+          #disp("evalThreshold");
         endfunction
 
         function peakDetectorFunction(self,sample)
