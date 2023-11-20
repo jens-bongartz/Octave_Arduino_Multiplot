@@ -8,6 +8,7 @@ classdef plotGraphClass < handle
 
   methods
     function self = plotGraphClass(dataStream)    # Constructor
+      graphics_toolkit("qt");
       self.fi_1 = figure(1);
       clf
       spN = 0;

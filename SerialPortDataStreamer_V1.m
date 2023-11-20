@@ -7,26 +7,33 @@
 pkg load instrument-control;
 clear all;
 # obj = dataStreamClass(name,plcolor,dt,plotwidth,plot,filter)
-dataStream(1) = dataStreamClass("SIM","red",5,800,1,1);
 # createFilter(f_abtast,f_HP,f_NO,f_TP)
-dataStream(1).createFilter(200,1,50,40);
-dataStream(1).slopeDetector = 1;
+#dataStream(2).length = 3000;
 ##dataStream(1).peakDetector  = 1;
 ##dataStream(1).evalWindow = 500;           # alle 2,5 sec Threshold neu bestimmen
 
+dataStream(1) = dataStreamClass("SIM","red",5,800,1,1);
+dataStream(1).createFilter(200,1,50,40);
+dataStream(1).slopeDetector = 1;
+
 dataStream(2) = dataStreamClass("SIG","blue",20,200,1,1);
-#dataStream(2).length = 3000;
 dataStream(2).createFilter(50,1,10,20);
 dataStream(2).slopeDetector = 1;
+
+streamSelector = createDictionary(dataStream);
+regex_pattern = createRegEx(dataStream);
 
 # Globale Variablen zur Programmsteuerung
 global HP_filtered = 1 NO_filtered = 1 TP_filtered = 1 DQ_filtered = 0 DQ2_filtered = 0;
 global quit_prg = 0 clear_data = 0 save_data = 0 rec_data = 1;
 
-baudrate                = 115200;
-min_bytesAvailable      = 10;
-min_datasetCounter_step = 20;
-# Automatische Suche nach passendem seriellen Port
+Bench_Time = 2;              # Sekunden
+Plot_Time = 0.1;
+SerialPort_Time = 0.1;
+Pause_Time = 0.05;
+
+# Suche nach passendem seriellen Port
+baudrate = 115200;
 disp('Searching Serial Port ... ')
 serialPortPath = checkSerialPorts(baudrate)
 
@@ -35,26 +42,6 @@ if !isempty(serialPortPath)
   disp('Device found:');
   disp(serialPortPath);
 
-  # Liste aller dataStream Namen erstellen fuer Dictonary
-  namelist = {};
-  for i = 1:length(dataStream)
-    namelist{end+1} = dataStream(i).name;
-  endfor
-  values = 1:numel(dataStream);
-  streamSelector = containers.Map (namelist,values);
-
-  # Aus den dataStream Namen wird das regex-Pattern erzeugt
-  # =======================================================
-  regex_pattern = '(';
-  for i = 1:length(dataStream)
-      regex_pattern = [regex_pattern dataStream(i).name];
-      if i < length(dataStream)
-          regex_pattern = [regex_pattern '|'];
-      endif
-  endfor
-  regex_pattern = [regex_pattern '):(-?\d+),t:(\d+)'];
-
-  graphics_toolkit("qt");
   # Graphikfenster initialisieren
   plotGraph = plotGraphClass(dataStream);
   cap = GUI_Elements(plotGraph.fi_1);       % cap ist ein Array von captions!
@@ -79,15 +66,19 @@ if !isempty(serialPortPath)
   until (posLF > 0);
   # erst ab dem letzten \n geht es los
   inBuffer = inSerialPort(posLF+1:end);
-
   disp('Receiving data!')
-  # Benchmarking
-  Bench_Time = 2;              # Sekunden
-  datasetCounter = 0; datasetCounter_prev = 0; datasetCounter_tic = 0; bytesReceived = 0;
-  main_tic = tic();
+
+  # Hauptschleife
+  # =============
+  datasetCounter = 0;
+  datasetCounter_tic = 0; bytesReceived = 0;
+
+  bench_tic = tic(); plot_tic = tic(); serial_tic = tic();
   [t_cpu_prev,t_user_prev,t_sys_prev] = cputime();
   do
-     ## Wenn der Clear-Button gedrueckt wurde
+     # Button checken
+     # ===============
+     ## Save-Button
      if (clear_data)
        j = 0;
        for i = 1:length(dataStream);
@@ -100,8 +91,7 @@ if !isempty(serialPortPath)
        datasetCounter = 0; datasetCounter_prev = 0;
        clear_data = 0;
      endif
-
-     ## Wenn der Save-Button gedrueckt wurde
+     ## Save-Button
      if (save_data)
        rec_data = 0;
        dataMatrix = {};
@@ -117,82 +107,88 @@ if !isempty(serialPortPath)
        save_data = 0;
      endif
 
-     bytesAvailable = serial_01.NumBytesAvailable;
+     # SerialPort auslesen
+     # ===================
+     s_toc = toc(serial_tic);
+     if (s_toc > SerialPort_Time)
+       bytesAvailable = serial_01.NumBytesAvailable;
+       if (bytesAvailable > 0)
+         # bytesReceived wird addiert und bei jedem Bench_Time zurueckgesetzt
+         bytesReceived = bytesReceived + bytesAvailable;
+         ## Daten werden vom SerialPort gelesen
+         inSerialPort = char(read(serial_01,bytesAvailable));
+         ## und an den inBuffer angehängt
+         inBuffer     = [inBuffer inSerialPort];
+         posLF        = index(inBuffer,char(10),"last");
+         if (posLF > 0)
+           % inBuffer wird zerlegt in inChar(vollstaendige Zeile(n)) + Rest = neuer inBuffer)
+           inChar   = inBuffer(1:posLF);         ## im folgenden wird  nur inChar ausgewertet
+           inBuffer = inBuffer(posLF+1:end);
 
-     if (bytesAvailable > min_bytesAvailable)
-       # bytesReceived wird addiert und bei jedem Bench_Time zurueckgesetzt
-       bytesReceived = bytesReceived + bytesAvailable;
-       ## Daten werden vom SerialPort gelesen
-       inSerialPort = char(read(serial_01,bytesAvailable));
-       ## und an den inBuffer angehängt
-       inBuffer     = [inBuffer inSerialPort];
-       posLF        = index(inBuffer,char(10),"last");
-       if (posLF > 0)
-         % inBuffer wird zerlegt in inChar(vollstaendige Zeile(n)) + Rest = neuer inBuffer)
-         inChar   = inBuffer(1:posLF);         ## im folgenden wird  nur inChar ausgewertet
-         inBuffer = inBuffer(posLF+1:end);
+           if (rec_data)   # Wird vom REC-Button gesteuert
+              # Regular Expression auswerten
+              matches = regexp(inChar, regex_pattern, 'tokens');
+              countMatches   = length(matches);       # Wert wird ausgegeben
+              # datasetCounter laeuft durch
+              datasetCounter = datasetCounter + countMatches;
+              # datasetCounter_tic wird nach jedem Bench_Time zurueckgesetzt
+              datasetCounter_tic = datasetCounter_tic + countMatches;
+              # Matches den dataStreams zuordnen
+              for i = 1:countMatches
+                streamName = matches{i}{1};
+                adc        = str2num(matches{i}{2});
+                sample_t   = str2num(matches{i}{3});
+                # Sample einem dataStream zuweisen
+                j = streamSelector(streamName);
+                # Hier uebernimmt dataStream die Arbeit
+                dataStream(j).addSample(adc,sample_t);
+              endfor
+           endif # (rec_data)
+         endif # of posCRLF
+       endif  # of bytesAvaiable
+       serial_tic = tic();
+     endif # s_toc
 
-         if (rec_data)   # Wird vom REC-Button gesteuert
-            # Regular Expression auswerten
-            matches = regexp(inChar, regex_pattern, 'tokens');
-            countMatches   = length(matches);       # Wert wird ausgegeben
-            # datasetCounter laeuft durch
-            datasetCounter = datasetCounter + countMatches;
-            # datasetCounter_tic wird nach jedem Bench_Time zurueckgesetzt
-            datasetCounter_tic = datasetCounter_tic + countMatches;
-            # Matches den dataStreams zuordnen
-            for i = 1:countMatches
-              streamName = matches{i}{1};
-              adc        = str2num(matches{i}{2});
-              sample_t   = str2num(matches{i}{3});
-              # Sample einem dataStream zuweisen
-              j = streamSelector(streamName);
-              # Hier uebernimmt dataStream die Arbeit
-              dataStream(j).addSample(adc,sample_t);
-            endfor
-
-            # Benchmarking pro Datenzeile (alle Bench_Time Sekunden)
-         endif # (rec_data)
-       endif # of posCRLF
-     endif  # of bytesAvaiable
      # Plot-Graphikfenster
      # ===================
-     if (datasetCounter - datasetCounter_prev) > min_datasetCounter_step
+     p_toc = toc(plot_tic);
+     if (p_toc > Plot_Time)
+     #if (datasetCounter - datasetCounter_prev) > min_datasetCounter_step
        plotGraph.draw(dataStream);
        if (ishandle(plotGraph.fi_1))   # Grafikausgabe nur wenn figure noch existiert
          set(cap(1),"string",num2str(datasetCounter));
        endif
        drawnow();
-       datasetCounter_prev = datasetCounter;
-     endif # datasetCounter - datasetCounter_prev) > 20
+       #datasetCounter_prev = datasetCounter;
+       plot_tic = tic();
+     endif # p_toc
+     # Entlastung der CPU
+     pause(Pause_Time);
+
      # Benchmarking
      # ============
-     t_toc = toc(main_tic);
-     if (t_toc > Bench_Time)
+     b_toc = toc(bench_tic);
+     if (b_toc > Bench_Time)
        # Empfangene Bytes pro Sekunde
-       f_oct = round(datasetCounter_tic/t_toc);  datasetCounter_tic = 0;
-       bytesPerSecond = round(bytesReceived / t_toc); bytesReceived = 0;
+       f_oct = round(datasetCounter_tic/b_toc);  datasetCounter_tic = 0;
+       bytesPerSecond = round(bytesReceived / b_toc); bytesReceived = 0;
 
        [t_cpu,t_user,t_sys] = cputime();
        user_load = t_user - t_user_prev; sys_load = t_sys - t_sys_prev;
        t_cpu_prev = t_cpu; t_user_prev = t_user; t_sys_prev = t_sys;
 
-       main_tic=tic();                   # neue Zeitschleife
-
+       bench_tic=tic();                   # neue Zeitschleife
        if (ishandle(plotGraph.fi_1))   # Grafikausgabe nur wenn figure noch existiert
          #set(cap(1),"string",num2str(datasetCounter));
          set(cap(2),"string",num2str(f_oct));
-         set(cap(3),"string",num2str(t_toc));
+         set(cap(3),"string",num2str(b_toc));
          set(cap(4),"string",num2str(user_load));       # untere Wert
          #set(cap(7),"string",num2str(sys_load));        # obere Wert
          set(cap(5),"string",num2str(bytesPerSecond));
          set(cap(6),"string",num2str(countMatches));
        endif # ishandle(fi_1))
-     endif
+     endif # b_toc
 
-     # Entlastung der CPU / des OS
-     #pause(0.05);    # 1/20 Sekunde
-     pause(0.025);    # 1/40 Sekunde
   until(quit_prg);    %% Programmende mit Quit-Button
   clear serial_01;
 endif
